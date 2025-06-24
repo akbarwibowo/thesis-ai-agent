@@ -4,9 +4,8 @@ services:
     container_name: crypto-mongodb
     restart: always
     environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: admin_password
-      MONGO_INITDB_DATABASE: agent_crypto_db
+      MONGODB_INITDB_ROOT_USERNAME: admin
+      MONGODB_INITDB_ROOT_PASSWORD: admin_password
     ports:
       - 27017:27017
     volumes:
@@ -15,19 +14,20 @@ services:
       - crypto_network
 
   influxdb:
-    image: influxdb:3-core
+    image: influxdb:2.7.1
     container_name: crypto-influxdb
     restart: always
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=admin_password
+      - DOCKER_INFLUXDB_INIT_ORG=crypto_org
+      - DOCKER_INFLUXDB_INIT_BUCKET=crypto_price
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=admin_token
     ports:
-      - 8181:8181 
+      - 8086:8086
     volumes:
-      - ./influxdb_data:/var/lib/influxdb3
-    command:
-      - influxdb3
-      - serve
-      - --node-id=node0
-      - --object-store=file
-      - --data-dir=/var/lib/influxdb3
+      - ./influxdb_data:/var/lib/influxdb2
     networks:
       - crypto_network
 
