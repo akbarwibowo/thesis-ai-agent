@@ -4,8 +4,8 @@ services:
     container_name: crypto-mongodb
     restart: always
     environment:
-      MONGODB_INITDB_ROOT_USERNAME: admin
-      MONGODB_INITDB_ROOT_PASSWORD: admin_password
+      MONGODB_INITDB_ROOT_USERNAME: ${MONGODB_USERNAME}
+      MONGODB_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD}
     ports:
       - 27017:27017
     volumes:
@@ -18,12 +18,12 @@ services:
     container_name: crypto-influxdb
     restart: always
     environment:
-      - DOCKER_INFLUXDB_INIT_MODE=setup
-      - DOCKER_INFLUXDB_INIT_USERNAME=admin
-      - DOCKER_INFLUXDB_INIT_PASSWORD=admin_password
-      - DOCKER_INFLUXDB_INIT_ORG=crypto_org
-      - DOCKER_INFLUXDB_INIT_BUCKET=crypto_price
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=admin_token
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_USERNAME}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD}
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN}
     ports:
       - 8086:8086
     volumes:
