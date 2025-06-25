@@ -3,9 +3,6 @@ services:
     image: mongodb/mongodb-community-server:7.0.19-ubi8
     container_name: crypto-mongodb
     restart: always
-    environment:
-      MONGODB_INITDB_ROOT_USERNAME: ${MONGODB_USERNAME}
-      MONGODB_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD}
     ports:
       - 27017:27017
     volumes:
