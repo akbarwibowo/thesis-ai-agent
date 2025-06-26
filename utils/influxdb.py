@@ -1,9 +1,10 @@
+import random
 from influxdb_client.client.influxdb_client import InfluxDBClient
 from influxdb_client.client.write.point import Point
 from influxdb_client.client.write_api import ASYNCHRONOUS
 from dotenv import load_dotenv, find_dotenv
 from os import getenv
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict
 import logging
 
@@ -84,20 +85,13 @@ def save_price_data(token_name: str, token_symbol: str, price_data: List[Dict]):
             return False
         
 
-def get_price_data(token_symbol, start_time=None, stop_time=None, measurement="token_price"):
+def get_price_data(token_name: str, token_symbol: str):
     """
     Retrieves time-series price data from InfluxDB for a specific token.
 
     Args:
-        token_symbol (str): The symbol of the token (e.g., "BTC", "ETH").
-                            This will be used to filter the data by tag.
-        start_time (str, datetime, optional): The start time for the data query.
-                                             Can be a datetime object or an ISO 8601 string.
-                                             If None, will retrieve data from the earliest available point.
-        stop_time (str, datetime, optional): The end time for the data query.
-                                           Can be a datetime object or an ISO 8601 string.
-                                           If None, will retrieve data up to the latest available point.
-        measurement (str, optional): The measurement name in InfluxDB. Defaults to "token_price".
+        token_symbol (str): The symbol of the token to query (e.g., "BTC", "ETH").
+        measurement (str): The measurement name in InfluxDB. Defaults to "token_price".
 
     Returns:
         list: A list of dictionaries containing the retrieved data points.
@@ -112,23 +106,14 @@ def get_price_data(token_symbol, start_time=None, stop_time=None, measurement="t
     try:
         with InfluxDBClient(url=URL, token=TOKEN, org=ORG) as client:
             query_api = client.query_api()
-            
+
+            # start_time, end_time = get_timestamp_range(token_name=token_name.upper(), token_symbol=token_symbol.upper())
+
             # Construct the Flux query
-            query = f'from(bucket:"{BUCKET}") |> range('
-            
-            # Add time range parameters if provided
-            if start_time:
-                if isinstance(start_time, datetime):
-                    start_time = start_time.isoformat() + "Z"
-                query += f'start: {start_time}'
-            
-            if stop_time:
-                if isinstance(stop_time, datetime):
-                    stop_time = stop_time.isoformat() + "Z"
-                query += f', stop: {stop_time}'
-            
-            query += f') |> filter(fn:(r) => r._measurement == "{measurement}")'
-            query += f' |> filter(fn:(r) => r.symbol == "{token_symbol.upper()}")'
+            query = f'from(bucket:"{BUCKET}") |> range(start: 0)'
+
+            query += f' |> filter(fn:(r) => r._measurement == "{token_name.upper()}")'
+            query += f' |> filter(fn:(r) => r.token_symbol == "{token_symbol.upper()}")'
             
             logger.info(f"Executing query for {token_symbol} data...")
             result = query_api.query(query=query, org=ORG)
@@ -167,13 +152,13 @@ def get_price_data(token_symbol, start_time=None, stop_time=None, measurement="t
         return None
 
 
-def get_timestamp_range(measurement_name: str, token_symbol: str):
+def get_timestamp_range(token_name: str, token_symbol: str):
     """
     Retrieves the oldest and newest timestamps for a specific measurement 
     and optionally filtered by token symbol.
 
     Args:
-        measurement_name (str): The name of the measurement to query
+        token_name (str): The name of the token to query
         token_symbol (str, optional): The token symbol to filter by
 
     Returns:
@@ -192,7 +177,7 @@ def get_timestamp_range(measurement_name: str, token_symbol: str):
             base_query = f'''
             from(bucket: "{BUCKET}")
               |> range(start: 0)
-              |> filter(fn: (r) => r._measurement == "{measurement_name}")
+              |> filter(fn: (r) => r._measurement == "{token_name}")
             '''
             
             # Add token symbol filter if provided
@@ -212,7 +197,7 @@ def get_timestamp_range(measurement_name: str, token_symbol: str):
             '''
             
             # Execute queries
-            logger.info(f"Querying timestamp range for measurement '{measurement_name}'...")
+            logger.info(f"Querying timestamp range for token '{token_name}'...")
             oldest_result = query_api.query(query=oldest_query, org=ORG)
             newest_result = query_api.query(query=newest_query, org=ORG)
             
@@ -225,7 +210,7 @@ def get_timestamp_range(measurement_name: str, token_symbol: str):
             if newest_result and len(newest_result) > 0 and len(newest_result[0].records) > 0:
                 newest_timestamp = newest_result[0].records[0].get_time()
             
-            logger.info(f"Timestamp range for '{measurement_name}': {oldest_timestamp} to {newest_timestamp}")
+            logger.info(f"Timestamp range for '{token_name}': {oldest_timestamp} to {newest_timestamp}")
             return oldest_timestamp, newest_timestamp
             
     except Exception as e:
@@ -284,7 +269,7 @@ def delete_price_data(token_name: str, token_symbol: str):
 
     try:
         with InfluxDBClient(url=URL, token=TOKEN, org=ORG) as client:
-            oldest_timestamp, newest_timestamp = get_timestamp_range(measurement_name=token_name.upper(), token_symbol=token_symbol.upper())
+            oldest_timestamp, newest_timestamp = get_timestamp_range(token_name=token_name.upper(), token_symbol=token_symbol.upper())
             oldest_timestamp = format_timestamp(oldest_timestamp)
             newest_timestamp = format_timestamp(newest_timestamp)
             delete_api = client.delete_api()
@@ -311,37 +296,53 @@ if __name__ == '__main__':
     # logger.info("Running InfluxDB examples...")
 
     # 1. Create some mock data, similar to what an API might return
-    # mock_btc_data = [
-    #     # Using ISO 8601 format strings for time, which is very common
-    #     {'time': '2024-06-26T10:00:00Z', 'open': 70000.5, 'high': 70100.0, 'low': 69900.2, 'close': 70050.8, 'volume': 100.2},
-    #     {'time': '2024-06-26T10:01:00Z', 'open': 70050.8, 'high': 70200.1, 'low': 70050.8, 'close': 70150.3, 'volume': 120.5},
-    #     {'time': '2024-06-26T10:02:00Z', 'open': 70150.3, 'high': 70180.7, 'low': 70080.4, 'close': 70100.9, 'volume': 95.8},
-    # ]
+    # Generate 30 days of mock data
+    mock_btc_data = []
+    base_price = 70000.0  # Starting price
+    current_date = datetime(2024, 1, 1)  # Start from January 1, 2024
 
-    # mock_eth_data = [
-    #     # Using datetime objects for time also works perfectly
-    #     {'time': datetime.now(), 'open': 3500.1, 'high': 3510.2, 'low': 3499.8, 'close': 3505.5, 'volume': 800.7},
-    # ]
-    # # 2. Call the function to save the data
-    # # Ensure your .env file is correctly set up before running this
-    # if TOKEN:
-    #     logger.info("--- Saving BTC Data ---")
-    #     save_price_data(token_name="Bitcoin", token_symbol="BTC", price_data=mock_btc_data)
-    #     save_price_data(token_name="Ethereum", token_symbol="ETH", price_data=mock_eth_data)
+    for _ in range(30):
+        # Create price variations
+        daily_volatility = base_price * 0.02  # 2% volatility
+        open_price = base_price
+        high_price = open_price + random.uniform(0, daily_volatility)
+        low_price = open_price - random.uniform(0, daily_volatility)
+        close_price = random.uniform(low_price, high_price)
+        volume = random.uniform(1000, 5000)
+
+        # Create data point
+        data_point = {
+            'time': current_date.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'open': round(open_price, 2),
+            'high': round(high_price, 2),
+            'low': round(low_price, 2),
+            'close': round(close_price, 2),
+            'volume': round(volume, 2)
+        }
+        mock_btc_data.append(data_point)
+
+        # Update for next iteration
+        base_price = close_price  # Next day opens at previous close
+        current_date += timedelta(days=1)
+    # 2. Call the function to save the data
+    # Ensure your .env file is correctly set up before running this
+    if TOKEN:
+        logger.info("--- Saving BTC Data ---")
+        save_price_data(token_name="Bitcoin", token_symbol="BTC", price_data=mock_btc_data)
     # else:
     #     logger.warning("Skipping examples: INFLUXDB_TOKEN not found in .env file.")
     #     logger.info("Please ensure your .env file is configured with your InfluxDB credentials.")
 
     # Uncomment to test data retrieval
-    # logger.info("--- Retrieving BTC Data Example ---")
-    # # Get BTC data from the last week
-    # end_time = datetime.now()
-    # start_time = end_time - timedelta(days=7)
-
-    # btc_data = get_price_data("Bitcoin", start_time=start_time, stop_time=end_time)
-    # if btc_data:
-    #     logger.info(f"First data point: {btc_data[0] if btc_data else 'No data found'}")
-    #     logger.info(f"Total data points: {len(btc_data)}")
+    logger.info("--- Retrieving BTC Data Example ---")
+    # Get BTC data from the last week
+    btc_data = get_price_data("Bitcoin", "BTC")
+    if btc_data:
+        n = 1
+        for point in btc_data:
+            print(point)
+            print(n)
+            n += 1
 
     # Add to the end of your __main__ block
     # if TOKEN:
@@ -356,4 +357,4 @@ if __name__ == '__main__':
     #     else:
     #         logger.info("No timestamp range found for Bitcoin")
 
-    delete_price_data("bitcoin", "btc")   
+    # delete_price_data("bitcoin", "btc")   
