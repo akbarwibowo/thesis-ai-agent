@@ -4,12 +4,12 @@ from os import getenv
 
 load_dotenv(find_dotenv())
 
-uri = getenv("MONGODB_URI")
-database_name = getenv("MONGODB_DATABASE")
+uri = str(getenv("MONGODB_URI"))
+database_name = str(getenv("MONGODB_DATABASE"))
 
 client = MongoClient(uri)
 
-database = client[str(database_name)]
+database = client[database_name]
 
 
 def insert_documents(collection_name: str, documents: list):
@@ -17,7 +17,7 @@ def insert_documents(collection_name: str, documents: list):
     try:
         collection = database[collection_name]
         collection.insert_many(documents)
-        return "Documents successfully inserted"
+        return True
     except Exception as e:
         return f"Error inserting documents: {str(e)}"
 
@@ -35,7 +35,7 @@ def delete_collection(name: str):
     """Delete a collection from the database."""
     try:
         database.drop_collection(name)
-        return "Collection successfully deleted"
+        return True
     except Exception as e:
         return f"Error deleting collection: {str(e)}"
     finally:
