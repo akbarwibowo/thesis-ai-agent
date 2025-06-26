@@ -1,9 +1,10 @@
 from influxdb_client.client.influxdb_client import InfluxDBClient
 from influxdb_client.client.write.point import Point
-from influxdb_client.client.write_api import SYNCHRONOUS
+from influxdb_client.client.write_api import ASYNCHRONOUS
 from dotenv import load_dotenv, find_dotenv
 from os import getenv
 from datetime import datetime, timedelta
+from typing import List, Dict
 
 load_dotenv(find_dotenv())
 
@@ -12,11 +13,13 @@ TOKEN = str(getenv("INFLUXDB_TOKEN"))
 ORG = str(getenv("INFLUXDB_ORG"))
 URL = str(getenv("INFLUXDB_URL"))
 
-def save_price_data(token_symbol, price_data):
+def save_price_data(token_name: str, token_symbol: str, price_data: List[Dict]):
     """
     Saves a list of time-series price data points to InfluxDB.
 
     Args:
+        token_name (str): The name of the token (e.g., "Bitcoin", "Ethereum").
+                          This will be used as a measurement in InfluxDB.
         token_symbol (str): The symbol of the token (e.g., "BTC", "ETH").
                             This will be used as a tag in InfluxDB.
         price_data (list of dict): A list of data points. Each dictionary
@@ -32,34 +35,29 @@ def save_price_data(token_symbol, price_data):
         print("Error: InfluxDB environment variables are not fully configured.")
         return False
 
-    # The 'with' statement ensures the client is properly closed after use
     with InfluxDBClient(url=URL, token=TOKEN, org=ORG) as client:
-        # A WriteAPI is used to write data. SYNCHRONOUS mode writes data in batches
-        # and waits for the server to acknowledge the write.
-        write_api = client.write_api(write_options=SYNCHRONOUS)
+        write_api = client.write_api(write_options=ASYNCHRONOUS)
 
-        # We will convert our list of dictionaries into a list of InfluxDB 'Point' objects
+        # convert our list of dictionaries into a list of InfluxDB 'Point' objects
         points_to_write = []
 
-        print(f"Preparing {len(price_data)} data points for '{token_symbol}'...")
+        print(f"Preparing {len(price_data)} data points for '{token_name}'...")
 
         for entry in price_data:
             # Create a Point object for each entry.
-            # A "measurement" is like a table name in a SQL database.
-            point = Point("token_price") \
-                .tag("symbol", token_symbol.upper()) \
-                .time(entry["time"]) # The time of the data point
+            point = Point(measurement_name=token_name.upper()) \
+                .tag("token_symbol", token_symbol.upper())
 
             # Add all other dictionary keys (except 'time') as "fields"
-            # Fields are the actual data values you want to store and query.
             for key, value in entry.items():
+                point = point.time(entry['time'])
+
                 if key != "time":
-                    # Ensure numeric values are cast correctly (float is safest)
                     try:
                         point = point.field(key, float(value))
                     except (ValueError, TypeError):
                         # Handle cases where a value might not be numeric
-                        print(f"Warning: Skipping non-numeric value for key '{key}' in {token_symbol} data.")
+                        print(f"Warning: Skipping non-numeric value for key '{key}' in {token_name} data.")
 
             points_to_write.append(point)
 
@@ -166,9 +164,9 @@ if __name__ == '__main__':
     # 1. Create some mock data, similar to what an API might return
     mock_btc_data = [
         # Using ISO 8601 format strings for time, which is very common
-        {'time': '2025-06-26T10:00:00Z', 'open': 70000.5, 'high': 70100.0, 'low': 69900.2, 'close': 70050.8, 'volume': 100.2},
-        {'time': '2025-06-26T10:01:00Z', 'open': 70050.8, 'high': 70200.1, 'low': 70050.8, 'close': 70150.3, 'volume': 120.5},
-        {'time': '2025-06-26T10:02:00Z', 'open': 70150.3, 'high': 70180.7, 'low': 70080.4, 'close': 70100.9, 'volume': 95.8},
+        {'time': '2024-06-26T10:00:00Z', 'open': 70000.5, 'high': 70100.0, 'low': 69900.2, 'close': 70050.8, 'volume': 100.2},
+        {'time': '2024-06-26T10:01:00Z', 'open': 70050.8, 'high': 70200.1, 'low': 70050.8, 'close': 70150.3, 'volume': 120.5},
+        {'time': '2024-06-26T10:02:00Z', 'open': 70150.3, 'high': 70180.7, 'low': 70080.4, 'close': 70100.9, 'volume': 95.8},
     ]
 
     mock_eth_data = [
@@ -181,20 +179,20 @@ if __name__ == '__main__':
     # Ensure your .env file is correctly set up before running this
     if TOKEN:
         print("\n--- Saving BTC Data ---")
-        save_price_data(token_symbol="BTC", price_data=mock_btc_data)
+        save_price_data(token_name="Bitcoin", token_symbol="BTC", price_data=mock_btc_data)
 
         print("\n--- Saving ETH Data ---")
-        save_price_data(token_symbol="ETH", price_data=mock_eth_data)
+        save_price_data(token_name="Ethereum", token_symbol="ETH", price_data=mock_eth_data)
     else:
         print("\nSkipping example: INFLUXDB_TOKEN not found in .env file.")
         print("Please ensure your .env file is configured with your InfluxDB credentials.")
 
-    print("\n--- Retrieving BTC Data Example ---")
-    # Get BTC data from the last week
-    end_time = datetime.now()
-    start_time = end_time - timedelta(days=7)
-    
-    btc_data = get_price_data("BTC", start_time=start_time, stop_time=end_time)
-    if btc_data:
-        print(f"First data point: {btc_data[0] if btc_data else 'No data found'}")
-        print(f"Total data points: {len(btc_data)}")
+    # print("\n--- Retrieving BTC Data Example ---")
+    # # Get BTC data from the last week
+    # end_time = datetime.now()
+    # start_time = end_time - timedelta(days=7)
+
+    # btc_data = get_price_data("Bitcoin", start_time=start_time, stop_time=end_time)
+    # if btc_data:
+    #     print(f"First data point: {btc_data[0] if btc_data else 'No data found'}")
+    #     print(f"Total data points: {len(btc_data)}")
