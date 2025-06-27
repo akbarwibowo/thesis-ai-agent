@@ -4,7 +4,7 @@ from influxdb_client.client.write.point import Point
 from influxdb_client.client.write_api import ASYNCHRONOUS
 from dotenv import load_dotenv, find_dotenv
 from os import getenv
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import List, Dict
 import logging
 
