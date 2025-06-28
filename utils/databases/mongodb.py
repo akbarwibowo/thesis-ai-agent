@@ -3,7 +3,16 @@ from dotenv import find_dotenv, load_dotenv
 from os import getenv
 import logging
 
+
 # Configure logger
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+    ]
+)
+
 logger = logging.getLogger(__name__)
 
 load_dotenv(find_dotenv())

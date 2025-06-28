@@ -5,6 +5,16 @@ from dotenv import load_dotenv, find_dotenv
 from os import getenv
 from datetime import datetime
 
+logging.basicConfig(
+    level=logging.INFO,  # Set to DEBUG to see debug messages too
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),  # This outputs to console/terminal
+        # Optional: also log to file
+        # logging.FileHandler('twitter_scraper.log')
+    ]
+)
+
 # Configure logger
 logger = logging.getLogger(__name__)
 
@@ -17,11 +27,18 @@ CRYPTO_PANIC_ENDPOINT = "https://cryptopanic.com/api/developer/v2/posts/"
 COIN_DESK_ENDPOINT = "https://data-api.coindesk.com/news/v1/article/list"
 
 """
-the format for the objects are:
+the format for the objects from API is:
 {
     "title": "string",
     "description": "string",
     "source": "string",
+    "published_at": "string"
+}
+
+the format for the objects from twitter is:
+{
+    "description": "string",
+    "source": "twitter",
     "published_at": "string"
 }
 """
@@ -101,7 +118,7 @@ def get_coindesk() -> list:
         final_result = []
 
         for result in results:
-            date = datetime.fromtimestamp(result.get("PUBLISHED_ON", datetime.now().timestamp()))
+            date = datetime.fromisoformat(result.get("PUBLISHED_ON", datetime.now().timestamp()))
             formatted_date = date.strftime("%Y-%m-%d")
             cleaned_object = {
                 "title": result.get("TITLE", ""),
@@ -119,3 +136,15 @@ def get_coindesk() -> list:
         logger.error(error_msg)
         print(error_msg)
         return []
+
+
+def run_news_api() -> list:
+    """Runs the data getter functions and aggregates their results.
+
+    Returns:
+        list: A combined list of news articles from both APIs.
+    """
+    crypto_panic_data = get_crypto_panic()
+    coindesk_data = get_coindesk()
+    # TODO add ID
+    return crypto_panic_data + coindesk_data
