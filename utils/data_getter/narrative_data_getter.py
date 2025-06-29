@@ -10,8 +10,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),  # This outputs to console/terminal
-        # Optional: also log to file
-        # logging.FileHandler('twitter_scraper.log')
     ]
 )
 

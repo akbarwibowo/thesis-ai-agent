@@ -323,7 +323,7 @@ def scrape_twitter_search(query, max_tweets=100, driver=None, since_date="2025-0
         logger.info(f"Starting Twitter scraping for query: {query} since {since_date}")
         
         # Navigate to Twitter search with date filter
-        search_query = f"{query} since:{since_date}"
+        search_query = f"{query} since:{since_date} lang:en"
         search_url = f"https://twitter.com/search?q={search_query}&src=typed_query&f=live"
         driver.get(search_url)
         logger.info(f"Navigating to Twitter search URL: {search_url}")
