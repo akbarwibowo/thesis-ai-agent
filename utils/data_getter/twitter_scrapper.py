@@ -1,5 +1,7 @@
 import json
 import logging
+import random
+from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -8,21 +10,21 @@ from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from datetime import datetime, timedelta
 import time
+import re
 from dotenv import load_dotenv, find_dotenv
 from os import getenv
 
 # Load environment variables
 load_dotenv(find_dotenv())
 
+# Configure logger
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.INFO,  # Set to DEBUG to see debug messages too
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(),
+        logging.StreamHandler(),  # This outputs to console/terminal
     ]
 )
-
-# Configure logger
 logger = logging.getLogger(__name__)
 
 # Get Twitter credentials from environment
@@ -30,24 +32,135 @@ TWITTER_EMAIL = getenv("TWITTER_EMAIL_MAIN")
 TWITTER_PASSWORD = getenv("TWITTER_PASSWORD_MAIN")
 TWITTER_USERNAME = getenv("TWITTER_USERNAME_MAIN")
 
+# User agents for rotation
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
+]
+
+
+def random_delay(min_seconds=3, max_seconds=12):
+    """Generate random delay between specified range.
+    
+    Args:
+        min_seconds (int): Minimum delay in seconds. Defaults to 3.
+        max_seconds (int): Maximum delay in seconds. Defaults to 12.
+    """
+    delay = random.uniform(min_seconds, max_seconds)
+    logger.debug(f"Waiting for {delay:.2f} seconds")
+    time.sleep(delay)
+
+
+def gradual_scroll(driver, scroll_pause_time=2.0):
+    """Scroll the page gradually instead of jumping to bottom.
+    
+    Args:
+        driver (webdriver.Chrome): The Chrome WebDriver instance.
+        scroll_pause_time (float): Time to pause between scrolls. Defaults to 2.0.
+        
+    Returns:
+        bool: True if new content was loaded, False otherwise.
+    """
+    last_height = driver.execute_script("return window.pageYOffset + window.innerHeight")
+    
+    # Scroll in increments
+    for i in range(3):
+        driver.execute_script(f"window.scrollBy(0, {random.randint(300, 800)});")
+        time.sleep(random.uniform(0.5, 1.5))
+    
+    # Wait for new content to load
+    time.sleep(scroll_pause_time)
+    
+    new_height = driver.execute_script("return window.pageYOffset + window.innerHeight")
+    return new_height != last_height
+
+
+def check_for_errors(driver):
+    """Check for error messages on the page and handle them.
+    
+    Args:
+        driver (webdriver.Chrome): The Chrome WebDriver instance.
+        
+    Returns:
+        bool: True if errors were found and handled, False otherwise.
+    """
+    error_indicators = [
+        "Something went wrong",
+        "Try again",
+        "Oops! Something went wrong",
+        "Sorry, something went wrong",
+        "We're sorry, but something went wrong"
+    ]
+    
+    try:
+        page_text = driver.find_element(By.TAG_NAME, "body").text.lower()
+        
+        for error_text in error_indicators:
+            if error_text.lower() in page_text:
+                logger.warning(f"Error detected on page: {error_text}")
+                random_delay(5, 15)  # Wait longer before refresh
+                driver.refresh()
+                random_delay(5, 10)  # Wait after refresh
+                return True
+                
+    except Exception as e:
+        logger.debug(f"Error checking page for errors: {e}")
+        
+    return False
+
 
 def setup_chrome_driver():
-    """Set up Chrome driver with appropriate options for scraping.
+    """Set up Chrome driver with enhanced stealth options and random user agent.
 
     Returns:
         webdriver.Chrome: Configured Chrome WebDriver instance.
     """
     chrome_options = Options()
+    
+    # Random user agent selection
+    user_agent = random.choice(USER_AGENTS)
+    logger.info(f"Using user agent: {user_agent}")
+    
+    # Enhanced stealth options
     # chrome_options.add_argument("--headless")  # Comment out to see browser running
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1080")
-    chrome_options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    chrome_options.add_experimental_option('useAutomationExtension', False)
+    chrome_options.add_argument("--disable-web-security")
+    chrome_options.add_argument("--allow-running-insecure-content")
+    chrome_options.add_argument("--disable-features=VizDisplayCompositor")
+    chrome_options.add_argument(f"--user-agent={user_agent}")
+    
+    # Additional stealth options
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--disable-plugins")
+    chrome_options.add_argument("--disable-images")  # Faster loading
+    chrome_options.add_argument("--disable-javascript-harmony-shipping")
+    chrome_options.add_argument("--disable-background-timer-throttling")
+    chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+    chrome_options.add_argument("--disable-renderer-backgrounding")
+    chrome_options.add_argument("--disable-features=TranslateUI")
+    chrome_options.add_argument("--disable-ipc-flooding-protection")
+    
+    # Randomize window size slightly
+    width = random.randint(1900, 1920)
+    height = random.randint(1000, 1080)
+    chrome_options.add_argument(f"--window-size={width},{height}")
     
     try:
         driver = webdriver.Chrome(options=chrome_options)
-        logger.info("Chrome driver initialized successfully")
+        
+        # Execute script to hide automation indicators
+        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        
+        logger.info("Chrome driver initialized successfully with enhanced stealth")
         return driver
     except Exception as e:
         logger.error(f"Failed to initialize Chrome driver: {e}")
@@ -88,7 +201,7 @@ def login_to_twitter(driver):
         # Click Next button
         next_button = driver.find_element(By.XPATH, '//span[text()="Next"]')
         next_button.click()
-        time.sleep(2)
+        random_delay(2, 4)
         
         # Handle potential username prompt (sometimes Twitter asks for username instead of email)
         try:
@@ -99,7 +212,7 @@ def login_to_twitter(driver):
             username_field.send_keys(str(TWITTER_USERNAME))
             next_button = driver.find_element(By.XPATH, '//span[text()="Next"]')
             next_button.click()
-            time.sleep(2)
+            random_delay(2, 4)
             logger.info("Username verification completed")
         except TimeoutException:
             # Username field didn't appear, continue to password
@@ -191,7 +304,7 @@ def scrape_twitter_search(query, max_tweets=100, driver=None, since_date="2025-0
         since_date (str): Date to search tweets from in YYYY-MM-DD format. Defaults to "2025-04-01".
 
     Returns:
-        list: A list of dictionaries containing tweet data with 'tweets' and 'published_at' fields.
+        list: A list of dictionaries containing tweet data with 'tweets', 'published_at', and 'tweet_url' fields.
               Returns empty list if scraping fails.
 
     Raises:
@@ -210,22 +323,32 @@ def scrape_twitter_search(query, max_tweets=100, driver=None, since_date="2025-0
         logger.info(f"Starting Twitter scraping for query: {query} since {since_date}")
         
         # Navigate to Twitter search with date filter
-        # Twitter search syntax: query since:YYYY-MM-DD
         search_query = f"{query} since:{since_date}"
         search_url = f"https://twitter.com/search?q={search_query}&src=typed_query&f=live"
         driver.get(search_url)
         logger.info(f"Navigating to Twitter search URL: {search_url}")
         
-        # Wait for page to load
-        time.sleep(5)
+        random_delay(5, 8)
+        
+        # Check for errors on initial page load
+        if check_for_errors(driver):
+            logger.info("Retrying after handling page error")
+            driver.get(search_url)
+            random_delay(5, 8)
         
         tweets_data = []
-        last_height = driver.execute_script("return document.body.scrollHeight")
         scroll_attempts = 0
         max_scroll_attempts = 10
         
         while len(tweets_data) < max_tweets and scroll_attempts < max_scroll_attempts:
-            # Find tweet elements
+            # Check for errors periodically
+            if scroll_attempts > 0 and scroll_attempts % 3 == 0:
+                if check_for_errors(driver):
+                    logger.info("Retrying search after handling page error")
+                    driver.get(search_url)
+                    random_delay(5, 8)
+                    continue
+            
             tweet_elements = driver.find_elements(By.CSS_SELECTOR, '[data-testid="tweet"]')
             
             for tweet_element in tweet_elements:
@@ -237,47 +360,43 @@ def scrape_twitter_search(query, max_tweets=100, driver=None, since_date="2025-0
                     tweet_text_element = tweet_element.find_element(By.CSS_SELECTOR, '[data-testid="tweetText"]')
                     tweet_text = tweet_text_element.text
                     
-                    # Extract timestamp
+                    # Extract timestamp and link
                     time_element = tweet_element.find_element(By.CSS_SELECTOR, 'time')
+                    tweet_link = time_element.find_element(By.XPATH, './..').get_attribute('href')
                     date_str = time_element.get_attribute('datetime')
                     
                     if date_str:
-                        # Parse ISO format datetime
                         tweet_datetime = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
                         formatted_date = tweet_datetime.strftime("%Y-%m-%d")
                     else:
-                        # Fallback to text content
                         date_text = time_element.text
                         formatted_date = parse_twitter_date(date_text)
+                    if len(tweet_text) > 60:
+                        tweet_obj = {
+                            "tweets": tweet_text,
+                            "published_at": formatted_date,
+                            "tweet_url": tweet_link
+                        }
                     
-                    # Create tweet object
-                    tweet_obj = {
-                        "tweets": tweet_text,
-                        "published_at": formatted_date
-                    }
-                    
-                    # Check if tweet already exists (avoid duplicates)
-                    if tweet_obj not in tweets_data:
-                        tweets_data.append(tweet_obj)
-                        logger.debug(f"Scraped tweet: {tweet_text[:50]}...")
-                    
+                        if tweet_obj not in tweets_data:
+                            tweets_data.append(tweet_obj)
+                            logger.debug(f"Scraped tweet: {tweet_text[:50]}...")
                 except NoSuchElementException:
                     continue
                 except Exception as e:
                     logger.warning(f"Error extracting tweet data: {e}")
                     continue
             
-            # Scroll down to load more tweets
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(3)
+            # Use gradual scrolling instead of jumping to bottom
+            content_loaded = gradual_scroll(driver, scroll_pause_time=random.uniform(2, 4))
             
-            # Check if new content loaded
-            new_height = driver.execute_script("return document.body.scrollHeight")
-            if new_height == last_height:
+            if not content_loaded:
                 scroll_attempts += 1
             else:
                 scroll_attempts = 0
-            last_height = new_height
+            
+            # Random delay between scroll attempts
+            random_delay(1, 3)
         
         logger.info(f"Successfully scraped {len(tweets_data)} tweets for query: {query}")
         return tweets_data
@@ -294,123 +413,32 @@ def scrape_twitter_search(query, max_tweets=100, driver=None, since_date="2025-0
             logger.info("Chrome driver closed")
 
 
-def scrape_twitter_user(username, max_tweets=50):
-    """Scrape tweets from a specific Twitter user's timeline.
-
-    Args:
-        username (str): Twitter username (without @ symbol).
-        max_tweets (int): Maximum number of tweets to scrape. Defaults to 50.
-
-    Returns:
-        list: A list of dictionaries containing tweet data with 'tweets' and 'published_at' fields.
-              Returns empty list if scraping fails.
-
-    Raises:
-        Exception: If there's an error during the scraping process.
-    """
-    driver = None
-    try:
-        logger.info(f"Starting Twitter scraping for user: @{username}")
-        driver = setup_chrome_driver()
-        
-        # Login to Twitter first
-        if not login_to_twitter(driver):
-            logger.error("Failed to login to Twitter. Cannot proceed with scraping.")
-            return []
-        
-        # Navigate to user's Twitter profile
-        profile_url = f"https://twitter.com/{username}"
-        driver.get(profile_url)
-        logger.info(f"Navigating to Twitter profile: {profile_url}")
-        
-        # Wait for page to load
-        time.sleep(5)
-        
-        tweets_data = []
-        last_height = driver.execute_script("return document.body.scrollHeight")
-        scroll_attempts = 0
-        max_scroll_attempts = 10
-        
-        while len(tweets_data) < max_tweets and scroll_attempts < max_scroll_attempts:
-            # Find tweet elements
-            tweet_elements = driver.find_elements(By.CSS_SELECTOR, '[data-testid="tweet"]')
-            
-            for tweet_element in tweet_elements:
-                if len(tweets_data) >= max_tweets:
-                    break
-                    
-                try:
-                    # Extract tweet text
-                    tweet_text_element = tweet_element.find_element(By.CSS_SELECTOR, '[data-testid="tweetText"]')
-                    tweet_text = tweet_text_element.text
-                    
-                    # Extract timestamp
-                    time_element = tweet_element.find_element(By.CSS_SELECTOR, 'time')
-                    date_str = time_element.get_attribute('datetime')
-                    
-                    if date_str:
-                        # Parse ISO format datetime
-                        tweet_datetime = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-                        formatted_date = tweet_datetime.strftime("%Y-%m-%d")
-                    else:
-                        # Fallback to text content
-                        date_text = time_element.text
-                        formatted_date = parse_twitter_date(date_text)
-                    
-                    # Create tweet object
-                    tweet_obj = {
-                        "tweets": tweet_text,
-                        "published_at": formatted_date
-                    }
-                    
-                    # Check if tweet already exists (avoid duplicates)
-                    if tweet_obj not in tweets_data:
-                        tweets_data.append(tweet_obj)
-                        logger.debug(f"Scraped tweet from @{username}: {tweet_text[:50]}...")
-                    
-                except NoSuchElementException:
-                    continue
-                except Exception as e:
-                    logger.warning(f"Error extracting tweet data: {e}")
-                    continue
-            
-            # Scroll down to load more tweets
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(3)
-            
-            # Check if new content loaded
-            new_height = driver.execute_script("return document.body.scrollHeight")
-            if new_height == last_height:
-                scroll_attempts += 1
-            else:
-                scroll_attempts = 0
-            last_height = new_height
-        
-        logger.info(f"Successfully scraped {len(tweets_data)} tweets from @{username}")
-        return tweets_data
-        
-    except Exception as e:
-        error_msg = f"Error scraping Twitter user '@{username}': {e}"
-        logger.error(error_msg)
-        print(error_msg)
-        return []
-    
-    finally:
-        if driver:
-            driver.quit()
-            logger.info("Chrome driver closed")
-
-
-def scrape_crypto_tweets(queries: list[str] = ["cryptocurrency OR crypto", "altcoin or altcoins"], max_tweets=100, since_date="2025-04-01"):
+def scrape_crypto_tweets(
+        queries: list[str] = [
+            "cryptocurrency", 
+            "altcoin OR altcoins", 
+            "RWA OR 'real-world assets'", 
+            "'layer 1'", 
+            "'layer 2'", 
+            "blockchain", 
+            "defi OR 'decentralized finance'", 
+            "dex OR 'decentralized exchange'", 
+            "AI OR 'artificial intelligence' AND token", 
+            "Depin", 
+            "token AND 'AI Agent'", 
+            "gamefi", 
+            "'institutional adoption' AND 'cryptocurrency'"
+            ], 
+        max_tweets=1500, since_date="2025-01-01"):
     """Scrape tweets related to cryptocurrency topics.
 
     Args:
         queries (list[str]): List of search queries to look for tweets about. Defaults to common crypto terms.
         max_tweets (int): Maximum number of tweets to scrape. Defaults to 100.
-        since_date (str): Date to search tweets from in YYYY-MM-DD format. Defaults to "2025-04-01".
+        since_date (str): Date to search tweets from in YYYY-MM-DD format. Defaults to "2025-01-01".
 
     Returns:
-        list: A list of dictionaries containing tweet data with 'tweets' and 'published_at' fields.
+        list: A list of dictionaries containing tweet data with 'tweets', 'published_at' and 'tweet_url' fields.
               Returns empty list if scraping fails.
     """
     driver = None
@@ -431,6 +459,10 @@ def scrape_crypto_tweets(queries: list[str] = ["cryptocurrency OR crypto", "altc
             tweets = scrape_twitter_search(query, tweets_per_query, driver, since_date)
             all_tweets.extend(tweets)
             
+            # Random delay between queries to avoid rate limiting
+            if query != queries[-1]:  # Don't delay after the last query
+                random_delay(5, 15)
+            
             if len(all_tweets) >= max_tweets:
                 break
         
@@ -440,8 +472,9 @@ def scrape_crypto_tweets(queries: list[str] = ["cryptocurrency OR crypto", "altc
         
         for tweet in all_tweets:
             tweet_text = tweet["tweets"]
-            if tweet_text not in seen_tweets:
-                seen_tweets.add(tweet_text)
+            tweet_url = tweet["tweet_url"]
+            if (tweet_text, tweet_url) not in seen_tweets:
+                seen_tweets.add((tweet_text, tweet_url))
                 unique_tweets.append(tweet)
                 
             if len(unique_tweets) >= max_tweets:
@@ -460,3 +493,9 @@ def scrape_crypto_tweets(queries: list[str] = ["cryptocurrency OR crypto", "altc
         if driver:
             driver.quit()
             logger.info("Chrome driver closed after completing all queries")
+
+if __name__ == "__main__":
+    result = scrape_crypto_tweets(max_tweets=500)
+    json_result = json.dumps(result, indent=2, ensure_ascii=False)
+    with open("crypto_tweets.json", "w", encoding="utf-8") as f:
+        f.write(json_result)
