@@ -33,7 +33,8 @@ def insert_documents(collection_name: str, documents: list):
         documents (list): A list of documents to insert into the collection.
 
     Returns:
-        bool or str: True if insertion is successful, error message string if failed.
+        bool: True if insertion is successful
+        str: error message string if failed.
     """
     try:
         logger.info(f"Inserting {len(documents)} documents into collection: {collection_name}")
@@ -54,12 +55,13 @@ def retrieve_documents(collection_name: str):
         collection_name (str): The name of the collection to retrieve documents from.
 
     Returns:
-        list or str: List of documents if successful, error message string if failed.
+        list: List of documents if successful
+        str: error message string if failed.
     """
     try:
         logger.info(f"Retrieving documents from collection: {collection_name}")
         collection = database[collection_name]
-        documents = list(collection.find({}))
+        documents = list(collection.find({}, {'_id': 0}))  # Exclude MongoDB's default _id field
         logger.info(f"Successfully retrieved {len(documents)} documents from {collection_name}")
         return documents
     except Exception as e:
@@ -69,13 +71,15 @@ def retrieve_documents(collection_name: str):
 
 
 def delete_collection(name: str):
-    """Delete a collection from the database.
+    """
+    Delete a collection from the database.
 
     Args:
         name (str): The name of the collection to delete.
 
     Returns:
-        bool or str: True if deletion is successful, error message string if failed.
+        bool: True if deletion is successful
+        str: error message string if failed.
     """
     try:
         logger.info(f"Deleting collection: {name}")
