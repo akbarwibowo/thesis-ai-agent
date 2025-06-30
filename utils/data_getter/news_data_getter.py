@@ -35,18 +35,18 @@ the format for the objects from API is:
 """
 
 
-def get_crypto_panic() -> list:
+def get_crypto_panic() -> list[dict[str, str]]:
     """Fetches the latest crypto news from Crypto Panic API.
 
     Returns:
-        list: A list of news articles formatted with title, description, source, and published_at fields.
+        list: A list of news articles formatted with title, description, and published_at fields.
               Returns empty list if request fails.
     
     Raises:
         requests.RequestException: If there's an error with the API request.
     """
     try:
-        logger.info("Fetching crypto news from Crypto Panic API")
+        logger.info("Fetching crypto news")
         response = requests.get(
             url=CRYPTO_PANIC_ENDPOINT,
             params={
@@ -81,11 +81,11 @@ def get_crypto_panic() -> list:
         return []
 
 
-def get_coindesk() -> list:
+def get_coindesk() -> list[dict[str, str]]:
     """Fetches the latest crypto news from CoinDesk API.
 
     Returns:
-        list: A list of news articles formatted with title, description, source, and published_at fields.
+        list: A list of news articles formatted with title, description, and published_at fields.
               Returns empty list if request fails.
     
     Raises:
@@ -95,7 +95,7 @@ def get_coindesk() -> list:
         logger.info("Fetching crypto news from CoinDesk API")
         response = requests.get(
             url=COIN_DESK_ENDPOINT,
-            params={"lang": "EN", "limit": 100, "to_ts": 1743444061},
+            params={"lang": "EN", "limit": 100, "to_ts": -1},
             headers={
                 "Content-type": "application/json; charset=UTF-8",
                 "authorization": f"Apikey {COIN_DESK_API_KEY}"
