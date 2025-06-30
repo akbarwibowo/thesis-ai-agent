@@ -14,7 +14,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-def get_narrative_data(scraping_query: list[str] = [], since_date: str = "") -> list:
+def get_narrative_data(scraping_query: list[str] = []) -> list[dict[str, str]]:
     """Fetch narrative data from news and twitter scraping sources.
 
     Args:
@@ -44,7 +44,10 @@ def get_narrative_data(scraping_query: list[str] = [], since_date: str = "") -> 
     narrative_data.extend(crypto_panic_data)
 
     # Get Twitter data
-    twitter_data = scrape_crypto_tweets(queries=scraping_query, since_date=since_date)
+    if not scraping_query:
+        twitter_data = scrape_crypto_tweets()
+    else:
+        twitter_data = scrape_crypto_tweets(queries=scraping_query)
 
     for data in twitter_data:
         data.pop('tweet_url', None)
