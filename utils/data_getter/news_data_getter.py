@@ -108,7 +108,7 @@ def get_coindesk() -> list[dict[str, str]]:
         final_result = []
 
         for result in results:
-            date = datetime.fromisoformat(result.get("PUBLISHED_ON", datetime.now().timestamp()))
+            date = datetime.fromtimestamp(result.get("PUBLISHED_ON", datetime.now().timestamp()))
             formatted_date = date.strftime("%Y-%m-%d")
             cleaned_object = {
                 "title": result.get("TITLE", ""),
