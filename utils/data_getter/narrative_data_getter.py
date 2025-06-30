@@ -1,6 +1,7 @@
 from news_data_getter import get_coindesk, get_crypto_panic
 from twitter_scraper import scrape_crypto_tweets
 
+import re
 import logging
 
 logging.basicConfig(
@@ -49,6 +50,16 @@ def get_narrative_data(scraping_query: list[str] = [], since_date: str = "") -> 
         data.pop('tweet_url', None)
         data['id'] = str(id)
         id += 1
+
+        tweet_text = data.get('tweet', '')
+        cleaned_tweet = tweet_text.replace('\n', ' ').replace('\r', '').strip() if tweet_text else ''
+        cleaned_tweet = re.sub(r'http\S+|www\S+|https\S+', '', cleaned_tweet, flags=re.MULTILINE)
+        cleaned_tweet = re.sub(r'@\w+', '', cleaned_tweet)
+        cleaned_tweet = re.sub(r'#(\w+)', r'\1', cleaned_tweet)
+        cleaned_tweet = re.sub(r'\s+', ' ', cleaned_tweet).strip()
+        
+        data['tweet'] = cleaned_tweet
+
         data['source'] = 'twitter'
     narrative_data.extend(twitter_data)
 
