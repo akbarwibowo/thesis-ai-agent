@@ -10,7 +10,8 @@ sys.path.insert(0, project_root)
 
 from news_data_getter import get_coindesk, get_crypto_panic
 from twitter_scraper import scrape_crypto_tweets
-from utils.databases.mongodb import insert_documents, retrieve_documents
+from utils.databases.mongodb import insert_documents
+from cointelegraph_scraper import scrape_cointelegraph_news
 
 
 logging.basicConfig(
@@ -36,7 +37,7 @@ def get_narrative_data(scraping_query: list[str] = []) -> list[dict[str, str]]:
     narrative_data = []
     id = 1
 
-    # Get news data
+    # Get coindesk news data
     coindesk_data = get_coindesk()
     for data in coindesk_data:
         desc_text = data.get('description', '')
@@ -52,7 +53,7 @@ def get_narrative_data(scraping_query: list[str] = []) -> list[dict[str, str]]:
         data['source'] = 'news'
     narrative_data.extend(coindesk_data)
 
-    # Get crypto panic data
+    # Get cryptopanic news data
     crypto_panic_data = get_crypto_panic()
     for data in crypto_panic_data:
         desc_text = data.get('description', '')
