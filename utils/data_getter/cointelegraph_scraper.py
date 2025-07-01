@@ -117,9 +117,6 @@ def gradual_scroll(driver, scroll_pause_time=2.0):
         time.sleep(random.uniform(0.5, 1.5))
     
     # Wait for new content to load
-    WebDriverWait(driver, scroll_pause_time).until(
-        lambda d: d.execute_script("return document.readyState") == "complete"
-    )
     time.sleep(scroll_pause_time)
     
     new_height = driver.execute_script("return window.pageYOffset + window.innerHeight")
@@ -159,14 +156,14 @@ def parse_cointelegraph_date(date_str):
 
 
 def scrape_article_content(driver, article_url):
-    """Scrape the full content and title of a single article.
+    """Scrape the full content of a single article.
 
     Args:
         driver (webdriver.Chrome): The Chrome WebDriver instance.
         article_url (str): URL of the article to scrape.
 
     Returns:
-        dict: Dictionary with 'title' and 'description' keys.
+        str: The article content/description.
     """
     try:
         driver.get(article_url)
@@ -174,15 +171,6 @@ def scrape_article_content(driver, article_url):
         
         # Wait for article content to load
         wait = WebDriverWait(driver, 15)
-        
-        # Extract title from h1.post__title (take first one only)
-        title = ""
-        try:
-            title_elements = driver.find_elements(By.CSS_SELECTOR, 'h1.post__title')
-            if title_elements:
-                title = title_elements[0].get_attribute('textContent').strip()
-        except:
-            logger.debug("Could not find title with h1.post__title selector")
         
         # Try different selectors for article content
         content_selectors = [
@@ -232,17 +220,11 @@ def scrape_article_content(driver, article_url):
         if len(content) > max_content_length:
             content = content[:max_content_length] + "..."
         
-        return {
-            'title': title if title else "Title not available",
-            'description': content if content else "Content not available"
-        }
+        return content if content else "Content not available"
         
     except Exception as e:
         logger.warning(f"Error scraping article content from {article_url}: {e}")
-        return {
-            'title': "Title not available",
-            'description': "Content not available"
-        }
+        return "Content not available"
 
 
 def scrape_cointelegraph_news(max_articles=50):
@@ -285,16 +267,21 @@ def scrape_cointelegraph_news(max_articles=50):
                 for element in elements:
                     href = element.get_attribute('href')
                     if href and '/news/' in href and href not in [link['url'] for link in article_links]:
-                        title = element.get_attribute('post-card-inline__title') or element.text or ""
-                        if title and len(title) > 10:  # Valid title
-                            article_links.append({
-                                'url': href,
-                                'title': title
-                            })
-            except Exception as e:
-                logger.warning(f"Error finding article links: {e}")
-                continue
-            gradual_scroll(driver, scroll_pause_time=10.0)
+                            title_element = element.find_element(By.XPATH, './/*[text()]') if element.text else element
+                            title_text = title_element.get_attribute('textContent') if title_element else None
+                            if not title_text:
+                                title_text = element.get_attribute('title') or element.text or ""
+                            title = title_text.strip() if title_text else ""
+                            if title and len(title) > 10:  # Valid title
+                                article_links.append({
+                                    'url': href,
+                                    'title': title
+                                })
+            except:
+                logger.warning("Error finding article links, scrolling...")
+                pass
+            gradual_scroll(driver, scroll_pause_time=3.0)
+            WebDriverWait(driver, 15)
             page += 1
             logger.info(f"Found {len(article_links)} article links on page {page}")
         
@@ -312,13 +299,8 @@ def scrape_cointelegraph_news(max_articles=50):
                 
                 logger.debug(f"Scraping article: {title[:50]}...")
                 
-                # Get article content and title
-                article_content = scrape_article_content(driver, article_url)
-                
-                # Use the scraped title if available, otherwise fall back to the link title
-                scraped_title = article_content['title']
-                final_title = scraped_title if scraped_title != "Title not available" else title
-                description = article_content['description']
+                # Get article content
+                description = scrape_article_content(driver, article_url)
                 
                 # Try to extract date from the article page
                 try:
@@ -351,7 +333,7 @@ def scrape_cointelegraph_news(max_articles=50):
                 
                 # Create article object
                 article_obj = {
-                    "title": final_title,
+                    "title": title,
                     "description": description,
                     "published_at": published_at,
                     "url": article_url
@@ -359,7 +341,7 @@ def scrape_cointelegraph_news(max_articles=50):
                 
                 if article_obj not in articles_data:
                     articles_data.append(article_obj)
-                logger.debug(f"Scraped article: {final_title[:50]}... ({len(articles_data)}/{max_articles})")
+                logger.debug(f"Scraped article: {title[:50]}... ({len(articles_data)}/{max_articles})")
                 
                 # Random delay between articles
                 random_delay(1, 3)
