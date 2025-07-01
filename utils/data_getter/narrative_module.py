@@ -106,7 +106,7 @@ def save_narrative_data_to_db(narrative_data: list[dict[str, str]], collection_n
         return False
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
 #     # Example usage
 #     narrative_data = get_narrative_data()
 #     if narrative_data:
@@ -117,4 +117,4 @@ if __name__ == "__main__":
     # print(type(retrieved_data))  # Print or save the JSON data as needed
     # print(retrieved_data)  # Print or save the JSON data as needed
     # with open('narrative_data.json', 'w', encoding='utf-8') as f:
-    #     json.dump(retrieved_data, f, indent=3, ensure_ascii=False)
+    #     json.dump(retrieved_data, f, indent=4, ensure_ascii=False)

@@ -31,7 +31,6 @@ the format for the objects from API is:
     "description": "string",
     "published_at": "string"
 }
-
 """
 
 
