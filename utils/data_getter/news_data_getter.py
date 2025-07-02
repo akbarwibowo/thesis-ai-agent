@@ -21,8 +21,8 @@ load_dotenv(find_dotenv())
 CRYPTO_PANIC_AUTH_TOKEN = getenv("CRYPTO_PANIC_AUTH_TOKEN")
 COIN_DESK_API_KEY = getenv("COIN_DESK_API_KEY")
 
-CRYPTO_PANIC_ENDPOINT = "https://cryptopanic.com/api/developer/v2/posts/"
-COIN_DESK_ENDPOINT = "https://data-api.coindesk.com/news/v1/article/list"
+CRYPTO_PANIC_ENDPOINT = getenv("CRYPTO_PANIC_ENDPOINT", "https://cryptopanic.com/api/developer/v2/posts/")
+COIN_DESK_ENDPOINT = getenv("COIN_DESK_ENDPOINT", "https://data-api.coindesk.com/news/v1/article/list")
 
 """
 the format for the objects from API is:
