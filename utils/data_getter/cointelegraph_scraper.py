@@ -279,7 +279,10 @@ def scrape_cointelegraph_news(max_articles=50):
                                 })
             except:
                 logger.warning("Error finding article links, scrolling...")
-                pass
+                # Add some randomness to scrolling direction
+                driver.execute_script(f"window.scrollBy(0, -{random.randint(200, 500)});")
+                time.sleep(random.uniform(0.5, 1.0))
+                continue
             gradual_scroll(driver, scroll_pause_time=3.0)
             WebDriverWait(driver, 15)
             page += 1
@@ -373,10 +376,3 @@ def scrape_cointelegraph_news(max_articles=50):
         if driver:
             driver.quit()
             logger.info("Chrome driver closed")
-
-
-# if __name__ == "__main__":
-#     # Test the scraper
-#     articles = scrape_cointelegraph_news(max_articles=5)
-#     for article in articles:
-#         print(article)
