@@ -255,8 +255,6 @@ def scrape_cointelegraph_news(max_articles=50):
         articles_data = []
         page = 0
 
-        # while len(articles_data) < max_articles:
-        # Wait for articles to load
         WebDriverWait(driver, 15)
         
         # Try different selectors for article links       
@@ -279,10 +277,8 @@ def scrape_cointelegraph_news(max_articles=50):
                                 })
             except:
                 logger.warning("Error finding article links, scrolling...")
-                # Add some randomness to scrolling direction
-                driver.execute_script(f"window.scrollBy(0, -{random.randint(200, 500)});")
                 time.sleep(random.uniform(0.5, 1.0))
-                continue
+                pass
             gradual_scroll(driver, scroll_pause_time=3.0)
             WebDriverWait(driver, 15)
             page += 1
@@ -300,7 +296,7 @@ def scrape_cointelegraph_news(max_articles=50):
                 if not article_url.startswith('http'):
                     article_url = f"https://cointelegraph.com{article_url}"
                 
-                logger.debug(f"Scraping article: {title[:50]}...")
+                logger.info(f"Scraping article: {title[:50]}...")
                 
                 # Get article content
                 description = scrape_article_content(driver, article_url)
