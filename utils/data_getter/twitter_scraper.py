@@ -501,9 +501,3 @@ def scrape_crypto_tweets(
         if driver:
             driver.quit()
             logger.info("Chrome driver closed after completing all queries")
-
-# if __name__ == "__main__":
-#     result = scrape_crypto_tweets(max_tweets=10)
-#     json_result = json.dumps(result, indent=2, ensure_ascii=False)
-#     with open("crypto_tweets.json", "w", encoding="utf-8") as f:
-#         f.write(json_result)

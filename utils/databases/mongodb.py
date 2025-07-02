@@ -62,8 +62,12 @@ def retrieve_documents(collection_name: str):
         logger.info(f"Retrieving documents from collection: {collection_name}")
         collection = database[collection_name]
         documents = list(collection.find({}, {'_id': 0}))  # Exclude MongoDB's default _id field
-        logger.info(f"Successfully retrieved {len(documents)} documents from {collection_name}")
-        return documents
+        if documents:
+            logger.info(f"Successfully retrieved {len(documents)} documents from {collection_name}")
+            return documents
+        else:
+            logger.info(f"No documents found in collection: {collection_name}")
+            return []
     except Exception as e:
         error_msg = f"Error retrieving documents: {str(e)}"
         logger.error(error_msg)
