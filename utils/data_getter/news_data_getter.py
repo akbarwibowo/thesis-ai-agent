@@ -29,6 +29,7 @@ the format for the objects from API is:
 {
     "title": "string",
     "description": "string",
+    "source": "string", 
     "published_at": "string"
 }
 """
@@ -66,6 +67,7 @@ def get_crypto_panic() -> list[dict[str, str]]:
             cleaned_object = {
                 "title": result.get("title", ""),
                 "description": result.get("description", ""),
+                "source": "Crypto Panic News",
                 "published_at": formatted_date,
             }
             final_results.append(cleaned_object)
@@ -112,6 +114,7 @@ def get_coindesk() -> list[dict[str, str]]:
             cleaned_object = {
                 "title": result.get("TITLE", ""),
                 "description": result.get("BODY", ""),
+                "source": "Coin Desk News",
                 "published_at": formatted_date,
             }
             final_result.append(cleaned_object)

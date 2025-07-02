@@ -234,7 +234,7 @@ def scrape_cointelegraph_news(max_articles=50):
         max_articles (int): Maximum number of articles to scrape. Defaults to 50.
 
     Returns:
-        list: A list of dictionaries containing news data with 'title', 'description', 'published_at', and 'url' fields.
+        list: A list of dictionaries containing news data with 'title', 'description', 'source', and 'published_at' fields.
               Returns empty list if scraping fails.
 
     Raises:
@@ -335,8 +335,8 @@ def scrape_cointelegraph_news(max_articles=50):
                 article_obj = {
                     "title": title,
                     "description": description,
+                    "source": "Cointelegraph News",
                     "published_at": published_at,
-                    "url": article_url
                 }
                 
                 if article_obj not in articles_data:

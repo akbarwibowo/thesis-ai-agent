@@ -439,7 +439,7 @@ def scrape_crypto_tweets(
         since_date (str): Date to search tweets from in YYYY-MM-DD format. Defaults to "2025-01-01".
 
     Returns:
-        list: A list of dictionaries containing tweets data with 'title', 'description' and 'published_at' fields.
+        list: A list of dictionaries containing tweets data with 'title', 'description', 'source' and 'published_at' fields.
               Returns empty list if scraping fails.
     """
     driver = None
@@ -476,8 +476,9 @@ def scrape_crypto_tweets(
             tweet_url = tweet["tweet_url"]
             if (tweet_text, tweet_url) not in seen_tweets:
                 seen_tweets.add((tweet_text, tweet_url))
-                
+
                 tweet['title'] = "X (Twitter) Tweet"
+                tweet['source'] = "X (Twitter)"
                 tweet['description'] = tweet_text
                 tweet['published_at'] = tweet["published_at"]
                 tweet.pop('tweet_url', None)
