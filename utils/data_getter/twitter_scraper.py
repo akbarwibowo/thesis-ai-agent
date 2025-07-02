@@ -125,7 +125,7 @@ def setup_chrome_driver():
     logger.info(f"Using user agent: {user_agent}")
     
     # Enhanced stealth options
-    # chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--headless")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
@@ -495,8 +495,8 @@ def scrape_crypto_tweets(
             driver.quit()
             logger.info("Chrome driver closed after completing all queries")
 
-if __name__ == "__main__":
-    result = scrape_crypto_tweets(max_tweets=10)
-    json_result = json.dumps(result, indent=2, ensure_ascii=False)
-    with open("crypto_tweets.json", "w", encoding="utf-8") as f:
-        f.write(json_result)
+# if __name__ == "__main__":
+#     result = scrape_crypto_tweets(max_tweets=10)
+#     json_result = json.dumps(result, indent=2, ensure_ascii=False)
+#     with open("crypto_tweets.json", "w", encoding="utf-8") as f:
+#         f.write(json_result)

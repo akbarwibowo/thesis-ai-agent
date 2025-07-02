@@ -59,7 +59,7 @@ def setup_chrome_driver():
     logger.info(f"Using user agent: {user_agent}")
     
     # Enhanced stealth options
-    # chrome_options.add_argument("--headless")  # Run in background
+    chrome_options.add_argument("--headless")  # Run in background
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
@@ -375,12 +375,8 @@ def scrape_cointelegraph_news(max_articles=50):
             logger.info("Chrome driver closed")
 
 
-if __name__ == "__main__":
-    # Test the scraper
-    articles = scrape_cointelegraph_news(max_articles=50)
-    for article in articles:
-        print(f"Title: {article['title']}")
-        print(f"Date: {article['published_at']}")
-        print(f"Description: {article['description']}")
-        print(f"Link: {article['url']}")
-        print("-" * 80)
+# if __name__ == "__main__":
+#     # Test the scraper
+#     articles = scrape_cointelegraph_news(max_articles=5)
+#     for article in articles:
+#         print(article)
