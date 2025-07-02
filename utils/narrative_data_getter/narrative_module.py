@@ -4,7 +4,6 @@ import logging
 import os
 import asyncio
 import atexit
-import json
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.join(current_dir, '..', '..')
@@ -50,8 +49,8 @@ async def parallel_runner(
     ):
     """Run scraping tasks in parallel."""
     results = await asyncio.gather(
-        # asyncio.to_thread(get_coindesk),
-        # asyncio.to_thread(get_crypto_panic),
+        asyncio.to_thread(get_coindesk),
+        asyncio.to_thread(get_crypto_panic),
         asyncio.to_thread(scrape_cointelegraph_news, max_articles=cointelegraph_max_articles),
         asyncio.to_thread(scrape_crypto_tweets, max_tweets=twitter_scrape_max_tweets, queries=twitter_scrape_keywords) if twitter_scrape_keywords else asyncio.to_thread(scrape_crypto_tweets, max_tweets=twitter_scrape_max_tweets)
     )
@@ -102,7 +101,16 @@ def get_narrative_data(
 
     return narrative_data
 
-def save_narrative_data_to_db(narrative_data: list[dict[str, str]], collection_name: str = "narrative_data") -> bool:
+
+def save_narrative_data_to_db(narrative_data: list[dict[str, str]]) -> bool:
+    """
+    Save narrative data to MongoDB collection.
+    Args:
+        narrative_data (list[dict[str, str]]): The narrative data to save.
+    Returns:
+        bool: True if saving is successful, False otherwise.
+    """
+    collection_name = "narrative_data"
     if not narrative_data:
         logger.warning("No narrative data to save.")
         return False
