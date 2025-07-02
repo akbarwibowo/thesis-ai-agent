@@ -125,7 +125,7 @@ def setup_chrome_driver():
     logger.info(f"Using user agent: {user_agent}")
     
     # Enhanced stealth options
-    chrome_options.add_argument("--headless")
+    # chrome_options.add_argument("--headless")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
@@ -377,11 +377,12 @@ def scrape_twitter_search(query, max_tweets=100, driver=None, since_date="2025-0
                             "published_at": formatted_date,
                             "tweet_url": tweet_link
                         }
-                    
+
                         if tweet_obj not in tweets_data:
                             tweets_data.append(tweet_obj)
                             logger.debug(f"Scraped tweet: {tweet_text[:50]}...")
                 except NoSuchElementException:
+                    logger.warning("Could not find tweet text or timestamp element, skipping this tweet")
                     continue
                 except Exception as e:
                     logger.warning(f"Error extracting tweet data: {e}")
@@ -452,7 +453,7 @@ def scrape_crypto_tweets(
             return []
         
         all_tweets = []
-        tweets_per_query = max_tweets // len(queries) if len(queries) > 0 else max_tweets
+        tweets_per_query = max(1, max_tweets // len(queries)) if len(queries) > 0 else max_tweets
         
         for query in queries:
             logger.info(f"Scraping query: {query}")
@@ -494,8 +495,8 @@ def scrape_crypto_tweets(
             driver.quit()
             logger.info("Chrome driver closed after completing all queries")
 
-# if __name__ == "__main__":
-#     result = scrape_crypto_tweets(max_tweets=500)
-#     json_result = json.dumps(result, indent=2, ensure_ascii=False)
-#     with open("crypto_tweets.json", "w", encoding="utf-8") as f:
-#         f.write(json_result)
+if __name__ == "__main__":
+    result = scrape_crypto_tweets(max_tweets=10)
+    json_result = json.dumps(result, indent=2, ensure_ascii=False)
+    with open("crypto_tweets.json", "w", encoding="utf-8") as f:
+        f.write(json_result)
