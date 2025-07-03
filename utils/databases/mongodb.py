@@ -122,3 +122,29 @@ def delete_document(collection_name: str, filter: dict) -> bool:
         return False
     finally:
         client.close()
+
+
+def retrieve_document(collection_name: str, filter: dict) -> dict:
+    """Retrieve a single document from a specified collection.
+
+    Args:
+        collection_name (str): The name of the collection to retrieve the document from.
+        filter (dict): The filter criteria to identify the document to retrieve.
+
+    Returns:
+        dict: The retrieved document if found | message (str): error message string if failed.
+    """
+    try:
+        logger.info(f"Retrieving document from collection: {collection_name} with filter: {filter}")
+        collection = database[collection_name]
+        document = collection.find_one(filter, {'_id': 0})  # Exclude MongoDB's default _id field
+        if document:
+            logger.info(f"Successfully retrieved document from {collection_name}")
+            return document
+        else:
+            logger.info(f"No document found in {collection_name} with filter: {filter}")
+            return {}
+    except Exception as e:
+        error_msg = f"Error retrieving document: {str(e)}"
+        logger.error(error_msg)
+        return {}
