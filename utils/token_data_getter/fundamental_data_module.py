@@ -417,6 +417,15 @@ def save_fundamental_data_to_db(fundamental_data: list) -> dict:
         for data in fundamental_data:
             collection_name = data.get("token_id", "unknown_token")
             data_to_save = data["fundamental_data"]
+
+            # Check if the collection already exists
+            existing_data = retrieve_documents(collection_name)
+            if isinstance(existing_data, list) and existing_data:
+                # If data already exists, delete it before inserting new data
+                logger.info(f"Deleting existing data for {collection_name} in DB")
+                delete_document(collection_name, existing_data[0]['fundamental_data'])
+                logger.info(f"Deleted existing data for {collection_name} in DB")
+
             insert_documents(collection_name, [{"fundamental_data": data_to_save}])
             return_status[collection_name] = f"fundamental data for {collection_name} saved successfully"
         logger.info(f"Successfully saved fundamental data to {collection_name}.")
@@ -425,3 +434,4 @@ def save_fundamental_data_to_db(fundamental_data: list) -> dict:
     except Exception as e:
         logger.error(f"Error saving fundamental data: {e}")
         return {"status": "error", "message": str(e)}
+
