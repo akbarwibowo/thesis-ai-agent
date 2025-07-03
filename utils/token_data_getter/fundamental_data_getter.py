@@ -1,8 +1,5 @@
 import requests
 import logging
-import re
-from collections import Counter
-import math
 
 from dotenv import load_dotenv, find_dotenv
 from os import getenv
