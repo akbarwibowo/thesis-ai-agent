@@ -152,7 +152,7 @@ def scrape_whitepaper(url: str, timeout: int = 30) -> str:
                 logger.debug("Using full page text content")
         
         # Clean the text
-        cleaned_text = clean_scraped_text(text_content)
+        cleaned_text = clean_text(text_content)
         
         content_type = "PDF" if is_pdf else "web page"
         logger.info(f"Successfully scraped {len(cleaned_text)} characters from {content_type}: {url}")
@@ -166,7 +166,7 @@ def scrape_whitepaper(url: str, timeout: int = 30) -> str:
         return ""
 
 
-def clean_scraped_text(text: str) -> str:
+def clean_text(text: str) -> str:
     """Clean scraped text content by removing extra whitespace and unwanted characters.
 
     Args:
@@ -299,7 +299,7 @@ def get_fundamental_data(token_id: str) -> dict:
         description_text = cleaned_data.get("description", "")
         if description_text:
             # Clean the description text
-            cleaned_description = clean_scraped_text(description_text)
+            cleaned_description = clean_text(description_text)
             cleaned_data["description"] = cleaned_description
 
         # extract whitepaper
@@ -308,7 +308,7 @@ def get_fundamental_data(token_id: str) -> dict:
             # Fetch and process the whitepaper content
             whitepaper_text = scrape_whitepaper(whitepaper_url, timeout=60)
             if whitepaper_text:
-                cleaned_whitepaper_text = clean_scraped_text(whitepaper_text)
+                cleaned_whitepaper_text = clean_text(whitepaper_text)
                 cleaned_data["whitepaper_text"] = cleaned_whitepaper_text
                 cleaned_data.pop("link_to_whitepaper", None)  # Remove the original link if text is available
 
