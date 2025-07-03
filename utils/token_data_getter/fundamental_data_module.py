@@ -186,52 +186,56 @@ def clean_text(text: str) -> str:
     if not text:
         return ""
     
-    # Remove excessive whitespace and normalize line breaks
-    text = re.sub(r'\s+', ' ', text)
-    
-    # Remove extra newlines and tabs
-    text = re.sub(r'[\n\r\t]+', ' ', text)
-    
-    # Clean PDF artifacts (common in PDF extraction)
-    text = re.sub(r'[^\w\s\.,!?;:()\-\'"/@#$%&*+=\[\]{}|\\`~]', '', text)
-    
-    # Remove page numbers and headers/footers (common PDF artifacts)
-    text = re.sub(r'\b\d+\s*$', '', text, flags=re.MULTILINE)  # Remove trailing page numbers
-    text = re.sub(r'^\s*\d+\s*', '', text, flags=re.MULTILINE)  # Remove leading page numbers
-    
-    # Remove repeated punctuation
-    text = re.sub(r'([.!?]){2,}', r'\1', text)
-    
-    # Remove multiple spaces
-    text = re.sub(r' {2,}', ' ', text)
-    
-    # Remove leading/trailing whitespace
-    text = text.strip()
-    
-    # Remove very short lines that are likely navigation, headers, or ads
-    lines = text.split('.')
-    meaningful_lines = []
-    
-    for line in lines:
-        line = line.strip()
-        # Keep lines that are substantial (more than 15 characters and contain actual words)
-        # Reduced from 20 to 15 for PDF content which might be more fragmented
-        if len(line) > 15 and len(line.split()) > 2:
-            meaningful_lines.append(line)
-    
-    # Rejoin meaningful content
-    cleaned_text = '. '.join(meaningful_lines)
-    
-    # Final cleanup
-    cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
-    
-    # Limit text length to prevent extremely long content
-    max_length = 15000  # Increased from 10,000 to 15,000 for whitepaper content
-    if len(cleaned_text) > max_length:
-        cleaned_text = cleaned_text[:max_length] + "..."
-        logger.info(f"Text truncated to {max_length} characters")
-    
-    return cleaned_text
+    try:
+        # Remove excessive whitespace and normalize line breaks
+        text = re.sub(r'\s+', ' ', text)
+        
+        # Remove extra newlines and tabs
+        text = re.sub(r'[\n\r\t]+', ' ', text)
+        
+        # Clean PDF artifacts (common in PDF extraction)
+        text = re.sub(r'[^\w\s\.,!?;:()\-\'"/@#$%&*+=\[\]{}|\\`~]', '', text)
+        
+        # Remove page numbers and headers/footers (common PDF artifacts)
+        text = re.sub(r'\b\d+\s*$', '', text, flags=re.MULTILINE)  # Remove trailing page numbers
+        text = re.sub(r'^\s*\d+\s*', '', text, flags=re.MULTILINE)  # Remove leading page numbers
+        
+        # Remove repeated punctuation
+        text = re.sub(r'([.!?]){2,}', r'\1', text)
+        
+        # Remove multiple spaces
+        text = re.sub(r' {2,}', ' ', text)
+        
+        # Remove leading/trailing whitespace
+        text = text.strip()
+        
+        # Remove very short lines that are likely navigation, headers, or ads
+        lines = text.split('.')
+        meaningful_lines = []
+        
+        for line in lines:
+            line = line.strip()
+            # Keep lines that are substantial (more than 15 characters and contain actual words)
+            # Reduced from 20 to 15 for PDF content which might be more fragmented
+            if len(line) > 15 and len(line.split()) > 2:
+                meaningful_lines.append(line)
+        
+        # Rejoin meaningful content
+        cleaned_text = '. '.join(meaningful_lines)
+        
+        # Final cleanup
+        cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
+        
+        # Limit text length to prevent extremely long content
+        max_length = 15000  # Increased from 10,000 to 15,000 for whitepaper content
+        if len(cleaned_text) > max_length:
+            cleaned_text = cleaned_text[:max_length] + "..."
+            logger.info(f"Text truncated to {max_length} characters")
+        
+        return cleaned_text
+    except Exception as e:
+        logger.error(f"Error cleaning text: {e}")
+        return ""
 
 
 def get_fundamental_data(token_id: str) -> dict:
@@ -272,7 +276,6 @@ def get_fundamental_data(token_id: str) -> dict:
             "community_data": "true",
             "developer_data": "true",
             "sparkline": "false",
-
             },
         headers={
             "accept": "application/json",
@@ -362,40 +365,44 @@ def get_fundamental_data_of_tokens(token_ids: list) -> list:
                     }
                 ]
     """
-    all_data = []
-    for token_id in token_ids:
-        logger.info(f"Fetching fundamental data for {token_id}")
+    try:
+        all_data = []
+        for token_id in token_ids:
+            logger.info(f"Fetching fundamental data for {token_id}")
 
-        # check token collection in DB
-        existing_data = retrieve_documents(token_id)
-        if isinstance(existing_data, list) and existing_data and 'fundamental_data' in existing_data[0]:
-            today = datetime.now()
-            updated_date = existing_data[0]['fundamental_data'].get('updated', None)
-            if updated_date - today < timedelta(weeks=4):
+            # check token collection in DB
+            existing_data = retrieve_documents(token_id)
+            if isinstance(existing_data, list) and existing_data and 'fundamental_data' in existing_data[0]:
+                today = datetime.now()
+                updated_date = existing_data[0]["updated"]
+                if updated_date - today < timedelta(weeks=4):
+                    all_data.append({
+                        "token_id": token_id,
+                        "fundamental_data": existing_data[0]
+                    })
+                    logger.info(f"Successfully retrieved data for {token_id} from DB")
+                    continue
+                else:
+                    logger.info(f"Data for {token_id} is outdated, fetching new data")
+                    logger.info(f"Deleting outdated data for {token_id} from DB")
+                    delete_document(token_id, existing_data[0])
+                    logger.info(f"Deleted outdated data for {token_id} from DB")
+                    break
+
+            data = get_fundamental_data(token_id)
+            if data:
                 all_data.append({
                     "token_id": token_id,
-                    "fundamental_data": existing_data[0]['fundamental_data']
+                    "fundamental_data": data
                 })
-                logger.info(f"Successfully retrieved data for {token_id} from DB")
-                continue
+                logger.info(f"Successfully fetched data for {token_id}")
             else:
-                logger.info(f"Data for {token_id} is outdated, fetching new data")
-                logger.info(f"Deleting outdated data for {token_id} from DB")
-                delete_document(token_id, existing_data[0]['fundamental_data'])
-                logger.info(f"Deleted outdated data for {token_id} from DB")
-                break
+                logger.warning(f"No data found for {token_id}")
 
-        data = get_fundamental_data(token_id)
-        if data:
-            all_data.append({
-                "token_id": token_id,
-                "fundamental_data": data
-            })
-            logger.info(f"Successfully fetched data for {token_id}")
-        else:
-            logger.warning(f"No data found for {token_id}")
-
-    return all_data
+        return all_data
+    except Exception as e:
+        logger.error(f"Error fetching fundamental data for tokens: {e}")
+        return []
 
 
 def save_fundamental_data_to_db(fundamental_data: list) -> dict:
@@ -407,31 +414,33 @@ def save_fundamental_data_to_db(fundamental_data: list) -> dict:
     Returns:
         dict: A dictionary containing the status of the save operation.
     """
-    collection_name = "fundamental_data"
-    if not fundamental_data:
-        logger.warning("No fundamental data to save.")
-        return {"status": "No data to save"}
-
     try:
-        return_status = {}
-        for data in fundamental_data:
-            collection_name = data.get("token_id", "unknown_token")
-            data_to_save = data["fundamental_data"]
+        if not fundamental_data:
+            logger.warning("No fundamental data to save.")
+            return {"status": "No data to save"}
 
-            # Check if the collection already exists
-            existing_data = retrieve_documents(collection_name)
-            if isinstance(existing_data, list) and existing_data:
-                # If data already exists, delete it before inserting new data
-                logger.info(f"Deleting existing data for {collection_name} in DB")
-                delete_document(collection_name, existing_data[0]['fundamental_data'])
-                logger.info(f"Deleted existing data for {collection_name} in DB")
+        try:
+            return_status = {}
+            for data in fundamental_data:
+                collection_name = data.get("token_id", "unknown_token")
+                data_to_save = data["fundamental_data"]
 
-            insert_documents(collection_name, [{"fundamental_data": data_to_save}])
-            return_status[collection_name] = f"fundamental data for {collection_name} saved successfully"
-        logger.info(f"Successfully saved fundamental data to {collection_name}.")
+                # Check if the collection already exists
+                existing_data = retrieve_documents(collection_name)
+                if isinstance(existing_data, list) and existing_data:
+                    # If data already exists, delete it before inserting new data
+                    logger.info(f"Deleting existing data for {collection_name} in DB")
+                    delete_document(collection_name, existing_data[0])
+                    logger.info(f"Deleted existing data for {collection_name} in DB")
 
-        return return_status
+                insert_documents(collection_name, [data])
+                return_status[collection_name] = f"fundamental data for {collection_name} saved successfully"
+                logger.info(f"Successfully saved fundamental data to {collection_name}.")
+
+            return return_status
+        except Exception as e:
+            logger.error(f"Error saving fundamental data: {e}")
+            return {"status": "error", "message": str(e)}
     except Exception as e:
-        logger.error(f"Error saving fundamental data: {e}")
+        logger.error(f"Error saving fundamental data to DB: {e}")
         return {"status": "error", "message": str(e)}
-
