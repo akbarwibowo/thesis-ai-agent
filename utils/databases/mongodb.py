@@ -94,3 +94,31 @@ def delete_collection(name: str):
         return False
     finally:
         client.close()
+
+
+def delete_document(collection_name: str, filter: dict) -> bool:
+    """Delete a document from a specified collection.
+
+    Args:
+        collection_name (str): The name of the collection to delete the document from.
+        filter (dict): The filter criteria to identify the document to delete.
+
+    Returns:
+        bool: True if deletion is successful | str: error message string if failed.
+    """
+    try:
+        logger.info(f"Deleting document from collection: {collection_name} with filter: {filter}")
+        collection = database[collection_name]
+        result = collection.delete_one(filter)
+        if result.deleted_count > 0:
+            logger.info(f"Successfully deleted document from {collection_name}")
+            return True
+        else:
+            logger.info(f"No document found to delete in {collection_name} with filter: {filter}")
+            return False
+    except Exception as e:
+        error_msg = f"Error deleting document: {str(e)}"
+        logger.error(error_msg)
+        return False
+    finally:
+        client.close()

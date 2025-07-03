@@ -147,12 +147,12 @@ def get_categories_with_tokens() -> list[dict]:
     return final_data
 
 
-def categories_selector(categories: list[str], similarity_threshold=0.1) -> list[dict]:
+def categories_selector(categories: list[str], similarity_threshold=0.2) -> list[dict]:
     """Select categories based on similarity to input category names using cosine similarity.
     
     Args:
         categories (list[str]): List of category names to search for.
-        similarity_threshold (float): Minimum similarity threshold for matching. Defaults to 0.1.
+        similarity_threshold (float): Minimum similarity threshold for matching. Defaults to 0.2.
         
     Returns:
         list[dict]: List of selected category dictionaries that match the input categories.

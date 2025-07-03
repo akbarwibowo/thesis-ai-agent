@@ -2,13 +2,21 @@ import requests
 import logging
 import re
 import io
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
-from PyPDF2 import PdfReader
+import os
+import sys
 
+from bs4 import BeautifulSoup
+from urllib.parse import urlparse
+from PyPDF2 import PdfReader
 from dotenv import load_dotenv, find_dotenv
 from os import getenv
+from datetime import datetime, timedelta
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.join(current_dir, '..', '..')
+sys.path.insert(0, project_root)
+
+from utils.databases.mongodb import insert_documents, retrieve_documents, delete_document
 
 # Configure logger
 logging.basicConfig(
@@ -249,7 +257,8 @@ def get_fundamental_data(token_id: str) -> dict:
                     "circulating_supply": float,
                     "max_supply": float,
                     "max_supply_infinite": bool,
-                    "developer_data": dict | str
+                    "developer_data": dict | str,
+                    "updated": datetime
                 }
     """
     try:
@@ -293,7 +302,8 @@ def get_fundamental_data(token_id: str) -> dict:
             "circulating_supply": data.get("market_data", {}).get("circulating_supply", 0.0),
             "max_supply": data.get("market_data", {}).get("max_supply", 0.0),
             "max_supply_infinite": data.get("max_supply", None),
-            "developer_data": developer_data
+            "developer_data": developer_data,
+            "updated": datetime.now()
         }
 
         description_text = cleaned_data.get("description", "")
@@ -319,53 +329,99 @@ def get_fundamental_data(token_id: str) -> dict:
         return {}
 
 
-def get_fundamental_data_of_tokens(token_ids: list) -> dict:
+def get_fundamental_data_of_tokens(token_ids: list) -> list:
     """Fetch fundamental data for multiple tokens from CoinGecko.
 
     Args:
         token_ids (list): A list of token IDs to fetch data for.
 
     Returns:
-        dict: A dictionary containing the fundamental data of the tokens.
+        list: A list of dictionaries containing the fundamental data of the tokens.
                 the schema of the dictionary is as follows where "developer_data" contains information about the developer's GitHub repositories or "Not Listed" if no repositories are available.:
-                
-                {
-                    token_id: str: 
-                        {
-                            "name": str,
-                            "categories": list[str],
-                            "description": str,
-                            "link_to_whitepaper": str | "whitepaper_text": str,
-                            "positive_sentiment": float,
-                            "negative_sentiment": float,
-                            "total_value_locked": float,
-                            "market_cap": float,
-                            "fully_diluted_valuation": float,
-                            "total_supply": float,
-                            "circulating_supply": float,
-                            "max_supply": float,
-                            "max_supply_infinite": bool,
-                            "developer_data": dict | str
-                        }
-                    ,
-                }
+                [
+                    {
+                        token_id: str,
+                        "fundamental_data":
+                            {
+                                "name": str,
+                                "categories": list[str],
+                                "description": str,
+                                "link_to_whitepaper": str | "whitepaper_text": str,
+                                "positive_sentiment": float,
+                                "negative_sentiment": float,
+                                "total_value_locked": float,
+                                "market_cap": float,
+                                "fully_diluted_valuation": float,
+                                "total_supply": float,
+                                "circulating_supply": float,
+                                "max_supply": float,
+                                "max_supply_infinite": bool,
+                                "developer_data": dict | str,
+                                "updated": datetime
+                            }
+                    }
+                ]
     """
-    all_data = {}
+    all_data = []
     for token_id in token_ids:
         logger.info(f"Fetching fundamental data for {token_id}")
+
+        # check token collection in DB
+        existing_data = retrieve_documents(token_id)
+        if isinstance(existing_data, list) and existing_data and 'fundamental_data' in existing_data[0]:
+            today = datetime.now()
+            updated_date = existing_data[0]['fundamental_data'].get('updated', None)
+            if updated_date - today < timedelta(weeks=4):
+                all_data.append({
+                    "token_id": token_id,
+                    "fundamental_data": existing_data[0]['fundamental_data']
+                })
+                logger.info(f"Successfully retrieved data for {token_id} from DB")
+                continue
+            else:
+                logger.info(f"Data for {token_id} is outdated, fetching new data")
+                logger.info(f"Deleting outdated data for {token_id} from DB")
+                delete_document(token_id, existing_data[0]['fundamental_data'])
+                logger.info(f"Deleted outdated data for {token_id} from DB")
+                break
+
         data = get_fundamental_data(token_id)
         if data:
-            all_data[token_id] = data
+            all_data.append({
+                "token_id": token_id,
+                "fundamental_data": data
+            })
             logger.info(f"Successfully fetched data for {token_id}")
         else:
             logger.warning(f"No data found for {token_id}")
 
     return all_data
 
-# if __name__ == "__main__":
-#     # Example usage
-#     token_ids = ["bitcoin", "dogecoin"]
-#     fundamental_data = get_fundamental_data_of_tokens(token_ids)
-#     with open("fundamental_data.json", "w") as f:
-#         import json
-#         json.dump(fundamental_data, f, indent=4)
+
+def save_fundamental_data_to_db(fundamental_data: list) -> dict:
+    """Save fundamental data to MongoDB collection.
+
+    Args:
+        fundamental_data (list): The fundamental data to save.
+
+    Returns:
+        dict: A dictionary containing the status of the save operation.
+    """
+    collection_name = "fundamental_data"
+    if not fundamental_data:
+        logger.warning("No fundamental data to save.")
+        return {"status": "No data to save"}
+
+    try:
+        return_status = {}
+        for data in fundamental_data:
+            collection_name = data.get("token_id", "unknown_token")
+            data_to_save = data["fundamental_data"]
+            insert_documents(collection_name, [{"fundamental_data": data_to_save}])
+            return_status[collection_name] = f"fundamental data for {collection_name} saved successfully"
+        logger.info(f"Successfully saved fundamental data to {collection_name}.")
+
+        return return_status
+    except Exception as e:
+        logger.error(f"Error saving fundamental data: {e}")
+        return {"status": "error", "message": str(e)}
