@@ -48,18 +48,23 @@ async def parallel_runner(
     cointelegraph_max_articles: int = 500
     ):
     """Run scraping tasks in parallel."""
-    results = await asyncio.gather(
-        asyncio.to_thread(get_coindesk),
-        asyncio.to_thread(get_crypto_panic),
-        asyncio.to_thread(scrape_cointelegraph_news, max_articles=cointelegraph_max_articles),
-        asyncio.to_thread(scrape_crypto_tweets, max_tweets=twitter_scrape_max_tweets, queries=twitter_scrape_keywords) if twitter_scrape_keywords else asyncio.to_thread(scrape_crypto_tweets, max_tweets=twitter_scrape_max_tweets)
-    )
-    narrative_data = []
-    for result in results:
-        if result:
-            narrative_data.extend(result)
+    logger.info("Starting parallel scraping tasks...")
+    try:
+        results = await asyncio.gather(
+            asyncio.to_thread(get_coindesk),
+            asyncio.to_thread(get_crypto_panic),
+            asyncio.to_thread(scrape_cointelegraph_news, max_articles=cointelegraph_max_articles),
+            asyncio.to_thread(scrape_crypto_tweets, max_tweets=twitter_scrape_max_tweets, queries=twitter_scrape_keywords) if twitter_scrape_keywords else asyncio.to_thread(scrape_crypto_tweets, max_tweets=twitter_scrape_max_tweets)
+        )
+        narrative_data = []
+        for result in results:
+            if result:
+                narrative_data.extend(result)
 
-    return narrative_data
+        return narrative_data
+    except Exception as e:
+        logger.error(f"Error in parallel scraping tasks: {e}")
+        return []
 
 
 def get_narrative_data(
@@ -78,28 +83,31 @@ def get_narrative_data(
     Returns:
         list: A list of narrative data articles with title, description, source, and published_at fields.
     """
+    try:
+        narrative_data = asyncio.run(parallel_runner(
+            twitter_scrape_keywords=twitter_scrape_keywords,
+            twitter_scrape_max_tweets=twitter_scrape_max_tweets,
+            cointelegraph_max_articles=cointelegraph_max_articles
+        ))
 
-    narrative_data = asyncio.run(parallel_runner(
-        twitter_scrape_keywords=twitter_scrape_keywords,
-        twitter_scrape_max_tweets=twitter_scrape_max_tweets,
-        cointelegraph_max_articles=cointelegraph_max_articles
-    ))
+        id = 1
 
-    id = 1
+        for data in narrative_data:
+            desc_text = data.get('description', '')
+            cleaned_text = desc_text.replace('\n', ' ').replace('\r', '').strip() if desc_text else ''
+            cleaned_text = re.sub(r'http\S+|www\S+|https\S+', '', cleaned_text, flags=re.MULTILINE)
+            cleaned_text = re.sub(r'@\w+', '', cleaned_text)
+            cleaned_text = re.sub(r'#(\w+)', r'\1', cleaned_text)
+            cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
+            data['description'] = cleaned_text
 
-    for data in narrative_data:
-        desc_text = data.get('description', '')
-        cleaned_text = desc_text.replace('\n', ' ').replace('\r', '').strip() if desc_text else ''
-        cleaned_text = re.sub(r'http\S+|www\S+|https\S+', '', cleaned_text, flags=re.MULTILINE)
-        cleaned_text = re.sub(r'@\w+', '', cleaned_text)
-        cleaned_text = re.sub(r'#(\w+)', r'\1', cleaned_text)
-        cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
-        data['description'] = cleaned_text
+            data['id'] = str(id)
+            id += 1
 
-        data['id'] = str(id)
-        id += 1
-
-    return narrative_data
+        return narrative_data
+    except Exception as e:
+        logger.error(f"Error fetching narrative data: {e}")
+        return []
 
 
 def save_narrative_data_to_db(narrative_data: list[dict[str, str]]) -> bool:
