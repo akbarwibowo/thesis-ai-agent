@@ -433,7 +433,7 @@ def save_fundamental_data_to_db(fundamental_data: list) -> dict:
                     delete_document(collection_name, existing_data[0])
                     logger.info(f"Deleted existing data for {collection_name} in DB")
 
-                insert_documents(collection_name, [data])
+                insert_documents(collection_name, [data_to_save])
                 return_status[collection_name] = f"fundamental data for {collection_name} saved successfully"
                 logger.info(f"Successfully saved fundamental data to {collection_name}.")
 
