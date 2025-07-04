@@ -30,7 +30,7 @@ COINGECKO_ENDPOINT = getenv("COINGECKO_ENDPOINT", "https://api.coingecko.com/api
 COINGECKO_API_KEY = getenv("COINGECKO_API_KEY")
 
 
-def get_token_price_data(token_id: str) -> list[dict]:
+def _get_token_price_data(token_id: str) -> list[dict]:
     """
     Fetch historical price data for a specific token from the CoinGecko API.
     Args:
@@ -94,7 +94,7 @@ def get_price_data_of_tokens(token_ids: list[str]) -> list[dict]:
                     })
                     continue
             logger.info(f"No existing data found for {token_id} in InfluxDB")
-            new_data = get_token_price_data(token_id)
+            new_data = _get_token_price_data(token_id)
             if new_data:
                 all_data.append({
                     "token_id": token_id,

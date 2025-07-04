@@ -25,7 +25,7 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
-def cleanup_asyncio():
+def _cleanup_asyncio():
     """Clean up asyncio resources properly."""
     try:
         loop = asyncio.get_event_loop()
@@ -38,11 +38,11 @@ def cleanup_asyncio():
         pass
 
 # Register cleanup function to run at exit
-atexit.register(cleanup_asyncio)
+atexit.register(_cleanup_asyncio)
 
 
 
-async def parallel_runner(
+async def _parallel_runner(
     twitter_scrape_keywords: list[str] = [], 
     twitter_scrape_max_tweets: int = 500,
     cointelegraph_max_articles: int = 500
@@ -84,7 +84,7 @@ def get_narrative_data(
         list: A list of narrative data articles with title, description, source, and published_at fields.
     """
     try:
-        narrative_data = asyncio.run(parallel_runner(
+        narrative_data = asyncio.run(_parallel_runner(
             twitter_scrape_keywords=twitter_scrape_keywords,
             twitter_scrape_max_tweets=twitter_scrape_max_tweets,
             cointelegraph_max_articles=cointelegraph_max_articles

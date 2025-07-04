@@ -34,7 +34,7 @@ USER_AGENTS = [
 ]
 
 
-def random_delay(min_seconds=2, max_seconds=8):
+def _random_delay(min_seconds=2, max_seconds=8):
     """Generate random delay between specified range.
     
     Args:
@@ -46,7 +46,7 @@ def random_delay(min_seconds=2, max_seconds=8):
     time.sleep(delay)
 
 
-def setup_chrome_driver():
+def _setup_chrome_driver():
     """Set up Chrome driver with enhanced stealth options and random user agent.
 
     Returns:
@@ -99,7 +99,7 @@ def setup_chrome_driver():
         raise
 
 
-def gradual_scroll(driver, scroll_pause_time=2.0):
+def _gradual_scroll(driver, scroll_pause_time=2.0):
     """Scroll the page gradually instead of jumping to bottom.
     
     Args:
@@ -123,7 +123,7 @@ def gradual_scroll(driver, scroll_pause_time=2.0):
     return new_height != last_height
 
 
-def parse_cointelegraph_date(date_str):
+def _parse_cointelegraph_date(date_str):
     """Parse Cointelegraph date format to YYYY-MM-DD format.
 
     Args:
@@ -155,7 +155,7 @@ def parse_cointelegraph_date(date_str):
         return datetime.now().strftime("%Y-%m-%d")
 
 
-def scrape_article_content(driver, article_url):
+def _scrape_article_content(driver, article_url):
     """Scrape the full content of a single article.
 
     Args:
@@ -167,7 +167,7 @@ def scrape_article_content(driver, article_url):
     """
     try:
         driver.get(article_url)
-        random_delay(2, 5)
+        _random_delay(2, 5)
         
         # Wait for article content to load
         wait = WebDriverWait(driver, 15)
@@ -243,14 +243,14 @@ def scrape_cointelegraph_news(max_articles=50):
     driver = None
     try:
         logger.info(f"Starting Cointelegraph news scraping for {max_articles} articles")
-        driver = setup_chrome_driver()
+        driver = _setup_chrome_driver()
         
         # Navigate to Cointelegraph news page
         base_url = "https://cointelegraph.com/tags/altcoin"
         driver.get(base_url)
         logger.info(f"Navigating to Cointelegraph: {base_url}")
         
-        random_delay(3, 6)
+        _random_delay(3, 6)
         
         articles_data = []
         page = 0
@@ -279,7 +279,7 @@ def scrape_cointelegraph_news(max_articles=50):
                 logger.warning("Error finding article links, scrolling...")
                 time.sleep(random.uniform(0.5, 1.0))
                 pass
-            gradual_scroll(driver, scroll_pause_time=3.0)
+            _gradual_scroll(driver, scroll_pause_time=3.0)
             WebDriverWait(driver, 15)
             page += 1
             logger.info(f"Found {len(article_links)} article links on page {page}")
@@ -299,7 +299,7 @@ def scrape_cointelegraph_news(max_articles=50):
                 logger.info(f"Scraping article: {title[:50]}...")
                 
                 # Get article content
-                description = scrape_article_content(driver, article_url)
+                description = _scrape_article_content(driver, article_url)
                 
                 # Try to extract date from the article page
                 try:
@@ -319,7 +319,7 @@ def scrape_cointelegraph_news(max_articles=50):
                             date_element = driver.find_element(By.CSS_SELECTOR, date_selector)
                             date_text = date_element.get_attribute('datetime') or date_element.get_attribute('textContent')
                             if date_text:
-                                published_at = parse_cointelegraph_date(date_text)
+                                published_at = _parse_cointelegraph_date(date_text)
                                 break
                         except:
                             continue
@@ -343,7 +343,7 @@ def scrape_cointelegraph_news(max_articles=50):
                 logger.debug(f"Scraped article: {title[:50]}... ({len(articles_data)}/{max_articles})")
                 
                 # Random delay between articles
-                random_delay(1, 3)
+                _random_delay(1, 3)
                 
             except Exception as e:
                 logger.warning(f"Error processing article {article_link.get('url', 'unknown')}: {e}")
@@ -352,8 +352,8 @@ def scrape_cointelegraph_news(max_articles=50):
         # Try to navigate to next page or scroll for more content
         if len(articles_data) < max_articles:
             try:
-                gradual_scroll(driver, scroll_pause_time=3.0)
-                random_delay(3, 6)
+                _gradual_scroll(driver, scroll_pause_time=3.0)
+                _random_delay(3, 6)
                 
             except Exception as e:
                 logger.debug(f"Could not load more content: {e}")

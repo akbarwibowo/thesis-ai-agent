@@ -66,7 +66,7 @@ def save_price_data(token_name: str, token_symbol: str, price_data: List[Dict]) 
                 time = entry['time']
                 time = datetime.fromisoformat(time) if isinstance(time, str) else time
 
-                point = point.time(format_timestamp(time))
+                point = point.time(_format_timestamp(time))
 
                 if key != "time":
                     try:
@@ -155,7 +155,7 @@ def get_price_data(token_name: str, token_symbol: str) -> list[dict]:
         return []
 
 
-def get_timestamp_range(token_name: str, token_symbol: str):
+def _get_timestamp_range(token_name: str, token_symbol: str):
     """
     Retrieves the oldest and newest timestamps for a specific measurement 
     and optionally filtered by token symbol.
@@ -221,7 +221,7 @@ def get_timestamp_range(token_name: str, token_symbol: str):
         return None, None
 
 
-def format_timestamp(timestamp):
+def _format_timestamp(timestamp):
     """
     Format a datetime object to RFC3339Nano format with UTC timezone.
     
@@ -272,9 +272,9 @@ def delete_price_data(token_name: str, token_symbol: str) -> bool:
 
     try:
         with InfluxDBClient(url=URL, token=TOKEN, org=ORG) as client:
-            oldest_timestamp, newest_timestamp = get_timestamp_range(token_name=token_name.upper(), token_symbol=token_symbol.upper())
-            oldest_timestamp = format_timestamp(oldest_timestamp)
-            newest_timestamp = format_timestamp(newest_timestamp)
+            oldest_timestamp, newest_timestamp = _get_timestamp_range(token_name=token_name.upper(), token_symbol=token_symbol.upper())
+            oldest_timestamp = _format_timestamp(oldest_timestamp)
+            newest_timestamp = _format_timestamp(newest_timestamp)
             delete_api = client.delete_api()
             
             # Construct predicate for filtering data to delete

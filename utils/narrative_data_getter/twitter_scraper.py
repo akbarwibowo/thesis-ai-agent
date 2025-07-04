@@ -42,7 +42,7 @@ USER_AGENTS = [
 ]
 
 
-def random_delay(min_seconds=3, max_seconds=12):
+def _random_delay(min_seconds=3, max_seconds=12):
     """Generate random delay between specified range.
     
     Args:
@@ -54,7 +54,7 @@ def random_delay(min_seconds=3, max_seconds=12):
     time.sleep(delay)
 
 
-def gradual_scroll(driver, scroll_pause_time=2.0):
+def _gradual_scroll(driver, scroll_pause_time=2.0):
     """Scroll the page gradually instead of jumping to bottom.
     
     Args:
@@ -78,7 +78,7 @@ def gradual_scroll(driver, scroll_pause_time=2.0):
     return new_height != last_height
 
 
-def check_for_errors(driver):
+def _check_for_errors(driver):
     """Check for error messages on the page and handle them.
     
     Args:
@@ -101,9 +101,9 @@ def check_for_errors(driver):
         for error_text in error_indicators:
             if error_text.lower() in page_text:
                 logger.warning(f"Error detected on page: {error_text}")
-                random_delay(5, 15)  # Wait longer before refresh
+                _random_delay(5, 15)  # Wait longer before refresh
                 driver.refresh()
-                random_delay(5, 10)  # Wait after refresh
+                _random_delay(5, 10)  # Wait after refresh
                 return True
                 
     except Exception as e:
@@ -112,7 +112,7 @@ def check_for_errors(driver):
     return False
 
 
-def setup_chrome_driver():
+def _setup_chrome_driver():
     """Set up Chrome driver with enhanced stealth options and random user agent.
 
     Returns:
@@ -167,7 +167,7 @@ def setup_chrome_driver():
         raise
 
 
-def login_to_twitter(driver):
+def _login_to_twitter(driver):
     """Login to Twitter/X using credentials from environment variables.
 
     Args:
@@ -201,7 +201,7 @@ def login_to_twitter(driver):
         # Click Next button
         next_button = driver.find_element(By.XPATH, '//span[text()="Next"]')
         next_button.click()
-        random_delay(2, 4)
+        _random_delay(2, 4)
         
         # Handle potential username prompt (sometimes Twitter asks for username instead of email)
         try:
@@ -212,7 +212,7 @@ def login_to_twitter(driver):
             username_field.send_keys(str(TWITTER_USERNAME))
             next_button = driver.find_element(By.XPATH, '//span[text()="Next"]')
             next_button.click()
-            random_delay(2, 4)
+            _random_delay(2, 4)
             logger.info("Username verification completed")
         except TimeoutException:
             # Username field didn't appear, continue to password
@@ -250,7 +250,7 @@ def login_to_twitter(driver):
         return False
 
 
-def parse_twitter_date(date_str):
+def _parse_twitter_date(date_str):
     """Parse Twitter date format to datetime object.
 
     Args:
@@ -294,7 +294,7 @@ def parse_twitter_date(date_str):
     return tweet_time.strftime("%Y-%m-%d")
 
 
-def scrape_twitter_search(query, max_tweets=100, driver=None, since_date="2025-04-01"):
+def _scrape_twitter_search(query, max_tweets=100, driver=None, since_date="2025-04-01"):
     """Scrape tweets from Twitter search results.
 
     Args:
@@ -313,9 +313,9 @@ def scrape_twitter_search(query, max_tweets=100, driver=None, since_date="2025-0
     driver_created = False
     if driver is None:
         driver_created = True
-        driver = setup_chrome_driver()
+        driver = _setup_chrome_driver()
         # Login to Twitter first
-        if not login_to_twitter(driver):
+        if not _login_to_twitter(driver):
             logger.error("Failed to login to Twitter. Cannot proceed with scraping.")
             return []
         
@@ -327,14 +327,14 @@ def scrape_twitter_search(query, max_tweets=100, driver=None, since_date="2025-0
         search_url = f"https://twitter.com/search?q={search_query}&src=typed_query&f=live"
         driver.get(search_url)
         logger.info(f"Navigating to Twitter search URL: {search_url}")
-        
-        random_delay(5, 8)
-        
+
+        _random_delay(5, 8)
+
         # Check for errors on initial page load
-        if check_for_errors(driver):
+        if _check_for_errors(driver):
             logger.info("Retrying after handling page error")
             driver.get(search_url)
-            random_delay(5, 8)
+            _random_delay(5, 8)
         
         tweets_data = []
         scroll_attempts = 0
@@ -343,10 +343,10 @@ def scrape_twitter_search(query, max_tweets=100, driver=None, since_date="2025-0
         while len(tweets_data) < max_tweets and scroll_attempts < max_scroll_attempts:
             # Check for errors periodically
             if scroll_attempts > 0 and scroll_attempts % 3 == 0:
-                if check_for_errors(driver):
+                if _check_for_errors(driver):
                     logger.info("Retrying search after handling page error")
                     driver.get(search_url)
-                    random_delay(5, 8)
+                    _random_delay(5, 8)
                     continue
             
             tweet_elements = driver.find_elements(By.CSS_SELECTOR, '[data-testid="tweet"]')
@@ -370,7 +370,7 @@ def scrape_twitter_search(query, max_tweets=100, driver=None, since_date="2025-0
                         formatted_date = tweet_datetime.strftime("%Y-%m-%d")
                     else:
                         date_text = time_element.text
-                        formatted_date = parse_twitter_date(date_text)
+                        formatted_date = _parse_twitter_date(date_text)
                     if len(tweet_text) > 60:
                         tweet_obj = {
                             "tweet": tweet_text,
@@ -389,15 +389,15 @@ def scrape_twitter_search(query, max_tweets=100, driver=None, since_date="2025-0
                     continue
             
             # Use gradual scrolling instead of jumping to bottom
-            content_loaded = gradual_scroll(driver, scroll_pause_time=random.uniform(2, 4))
-            
+            content_loaded = _gradual_scroll(driver, scroll_pause_time=random.uniform(2, 4))
+
             if not content_loaded:
                 scroll_attempts += 1
             else:
                 scroll_attempts = 0
             
             # Random delay between scroll attempts
-            random_delay(1, 3)
+            _random_delay(1, 3)
         
         logger.info(f"Successfully scraped {len(tweets_data)} tweets for query: {query}")
         return tweets_data
@@ -447,8 +447,8 @@ def scrape_crypto_tweets(
         logger.info(f"Starting crypto tweets scraping with shared driver session since {since_date}")
         
         # Setup driver and login once
-        driver = setup_chrome_driver()
-        if not login_to_twitter(driver):
+        driver = _setup_chrome_driver()
+        if not _login_to_twitter(driver):
             logger.error("Failed to login to Twitter. Cannot proceed with scraping.")
             return []
         
@@ -457,12 +457,12 @@ def scrape_crypto_tweets(
         
         for query in queries:
             logger.info(f"Scraping query: {query}")
-            tweets = scrape_twitter_search(query, tweets_per_query, driver, since_date)
+            tweets = _scrape_twitter_search(query, tweets_per_query, driver, since_date)
             all_tweets.extend(tweets)
             
             # Random delay between queries to avoid rate limiting
             if query != queries[-1]:  # Don't delay after the last query
-                random_delay(5, 15)
+                _random_delay(5, 15)
             
             if len(all_tweets) >= max_tweets:
                 break

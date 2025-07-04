@@ -34,7 +34,7 @@ COINGECKO_ENDPOINT = getenv("COINGECKO_ENDPOINT", "https://api.coingecko.com/api
 COINGECKO_API_KEY = getenv("COINGECKO_API_KEY")
 
 
-def extract_text_from_pdf(pdf_content: bytes) -> str:
+def _extract_text_from_pdf(pdf_content: bytes) -> str:
     """Extract text content from PDF bytes.
 
     Args:
@@ -74,7 +74,7 @@ def extract_text_from_pdf(pdf_content: bytes) -> str:
         return ""
 
 
-def scrape_whitepaper(url: str, timeout: int = 30) -> str:
+def _scrape_whitepaper(url: str, timeout: int = 30) -> str:
     """Scrape text content from a whitepaper URL (supports both PDF and web content).
 
     Args:
@@ -117,7 +117,7 @@ def scrape_whitepaper(url: str, timeout: int = 30) -> str:
         if is_pdf:
             logger.info("Detected PDF content, extracting text from PDF")
             # Extract text from PDF
-            text_content = extract_text_from_pdf(response.content)
+            text_content = _extract_text_from_pdf(response.content)
         else:
             logger.info("Detected web content, parsing HTML")
             # Parse HTML content
@@ -160,7 +160,7 @@ def scrape_whitepaper(url: str, timeout: int = 30) -> str:
                 logger.debug("Using full page text content")
         
         # Clean the text
-        cleaned_text = clean_text(text_content)
+        cleaned_text = _clean_text(text_content)
         
         content_type = "PDF" if is_pdf else "web page"
         logger.info(f"Successfully scraped {len(cleaned_text)} characters from {content_type}: {url}")
@@ -174,7 +174,7 @@ def scrape_whitepaper(url: str, timeout: int = 30) -> str:
         return ""
 
 
-def clean_text(text: str) -> str:
+def _clean_text(text: str) -> str:
     """Clean scraped text content by removing extra whitespace and unwanted characters.
 
     Args:
@@ -238,7 +238,7 @@ def clean_text(text: str) -> str:
         return ""
 
 
-def get_fundamental_data(token_id: str) -> dict:
+def _get_fundamental_data(token_id: str) -> dict:
     """Fetch fundamental data for a specific token from CoinGecko.
 
     Args:
@@ -312,16 +312,16 @@ def get_fundamental_data(token_id: str) -> dict:
         description_text = cleaned_data.get("description", "")
         if description_text:
             # Clean the description text
-            cleaned_description = clean_text(description_text)
+            cleaned_description = _clean_text(description_text)
             cleaned_data["description"] = cleaned_description
 
         # extract whitepaper
         whitepaper_url = cleaned_data.get("link_to_whitepaper", "")
         if whitepaper_url:
             # Fetch and process the whitepaper content
-            whitepaper_text = scrape_whitepaper(whitepaper_url, timeout=60)
+            whitepaper_text = _scrape_whitepaper(whitepaper_url, timeout=60)
             if whitepaper_text:
-                cleaned_whitepaper_text = clean_text(whitepaper_text)
+                cleaned_whitepaper_text = _clean_text(whitepaper_text)
                 cleaned_data["whitepaper_text"] = cleaned_whitepaper_text
                 cleaned_data.pop("link_to_whitepaper", None)  # Remove the original link if text is available
 
@@ -388,7 +388,7 @@ def get_fundamental_data_of_tokens(token_ids: list) -> list:
                     delete_document(token_id, existing_data[0])
                     logger.info(f"Deleted outdated data for {token_id} from DB")
 
-            data = get_fundamental_data(token_id)
+            data = _get_fundamental_data(token_id)
             if data:
                 all_data.append({
                     "token_id": token_id,

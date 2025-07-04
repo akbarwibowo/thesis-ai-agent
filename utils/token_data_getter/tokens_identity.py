@@ -29,7 +29,7 @@ COINGECKO_ENDPOINT = getenv("COINGECKO_ENDPOINT", "https://api.coingecko.com/api
 COINGECKO_API_KEY = getenv("COINGECKO_API_KEY")
 
 
-def get_and_save_token_identities() -> bool:
+def _get_and_save_token_identities() -> bool:
     """Fetches all token identities from CoinGecko.
 
     Returns:
@@ -97,7 +97,7 @@ def get_token_identity(token_id: str, max_retries: int = 1) -> dict:
                 logger.info("Getting token identity from CoinGecko API and save to DB")
                 
                 # Fetch and save all token identities
-                if get_and_save_token_identities():
+                if _get_and_save_token_identities():
                     logger.info("Successfully updated token identities. Retrying search...")
                     # Recursively call with decremented retry count
                     return get_token_identity(token_id, max_retries - 1)

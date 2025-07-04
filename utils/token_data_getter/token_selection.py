@@ -24,7 +24,7 @@ COINGECKO_ENDPOINT = getenv("COINGECKO_ENDPOINT", "https://api.coingecko.com/api
 COINGECKO_API_KEY = getenv("COINGECKO_API_KEY")
 
 
-def preprocess_text(text):
+def _preprocess_text(text):
     """Preprocess text for similarity comparison.
     
     Args:
@@ -40,7 +40,7 @@ def preprocess_text(text):
     return words
 
 
-def calculate_cosine_similarity(text1, text2):
+def _calculate_cosine_similarity(text1, text2):
     """Calculate cosine similarity between two texts.
     
     Args:
@@ -51,9 +51,9 @@ def calculate_cosine_similarity(text1, text2):
         float: Cosine similarity score between 0 and 1.
     """
     # Preprocess texts
-    words1 = preprocess_text(text1)
-    words2 = preprocess_text(text2)
-    
+    words1 = _preprocess_text(text1)
+    words2 = _preprocess_text(text2)
+
     # Create word frequency vectors
     all_words = set(words1 + words2)
     
@@ -75,7 +75,7 @@ def calculate_cosine_similarity(text1, text2):
     return dot_product / (magnitude1 * magnitude2)
 
 
-def find_best_category_match(input_category, available_categories, threshold=0.1):
+def _find_best_category_match(input_category, available_categories, threshold=0.1):
     """Find the best matching category using cosine similarity.
     
     Args:
@@ -91,8 +91,8 @@ def find_best_category_match(input_category, available_categories, threshold=0.1
     
     for category in available_categories:
         category_name = category.get("name", "")
-        similarity = calculate_cosine_similarity(input_category, category_name)
-        
+        similarity = _calculate_cosine_similarity(input_category, category_name)
+
         logger.debug(f"Similarity between '{input_category}' and '{category_name}': {similarity:.3f}")
         
         if similarity > best_score and similarity >= threshold:
@@ -107,7 +107,7 @@ def find_best_category_match(input_category, available_categories, threshold=0.1
     return best_match
 
 
-def get_categories_with_tokens() -> list[dict]:
+def _get_categories_with_tokens() -> list[dict]:
     """
     Fetch categories from CoinGecko API along with their top 3 tokens.
     Returns:
@@ -161,7 +161,7 @@ def categories_selector(categories: list[str], similarity_threshold=0.2) -> list
     logger.info(f"Selecting categories similar to: {categories}")
     
     # Get all available categories with tokens
-    available_categories = get_categories_with_tokens()
+    available_categories = _get_categories_with_tokens()
     
     if not available_categories:
         logger.error("No categories available from CoinGecko API")
@@ -175,7 +175,7 @@ def categories_selector(categories: list[str], similarity_threshold=0.2) -> list
     for input_category in categories:
         logger.info(f"Searching for category similar to: '{input_category}'")
         
-        best_match = find_best_category_match(
+        best_match = _find_best_category_match(
             input_category, 
             available_categories, 
             threshold=similarity_threshold
