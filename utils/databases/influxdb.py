@@ -37,8 +37,8 @@ def save_price_data(token_name: str, token_symbol: str, price_data: List[Dict]) 
         price_data (list of dict): A list of data points. Each dictionary
                                    should represent a single point in time
                                    (like a candlestick) and must contain at least
-                                   a 'time' field and other numeric fields (e.g., open, high, low, close, volume).
-                                   The 'time' field can be an ISO 8601 string or a datetime object.
+                                   a 'timestamp' field and other numeric fields (e.g., open, high, low, close, volume).
+                                   The 'timestamp' field can be an ISO 8601 string or a datetime object.
 
     Returns:
         bool: True if the write operation was successful, False otherwise.
@@ -46,46 +46,45 @@ def save_price_data(token_name: str, token_symbol: str, price_data: List[Dict]) 
     if not all([URL, TOKEN, ORG, BUCKET]):
         logger.error("InfluxDB environment variables are not fully configured.")
         return False
+    try:
+        with InfluxDBClient(url=URL, token=TOKEN, org=ORG) as client:
+            write_api = client.write_api(write_options=ASYNCHRONOUS)
 
-    with InfluxDBClient(url=URL, token=TOKEN, org=ORG) as client:
-        write_api = client.write_api(write_options=ASYNCHRONOUS)
+            # convert our list of dictionaries into a list of InfluxDB 'Point' objects
+            points_to_write = []
 
-        # convert our list of dictionaries into a list of InfluxDB 'Point' objects
-        points_to_write = []
+            logger.info(f"Preparing {len(price_data)} data points for '{token_name}'...")
 
-        logger.info(f"Preparing {len(price_data)} data points for '{token_name}'...")
+            for entry in price_data:
+                # Create a Point object for each entry.
+                point = Point(measurement_name=token_name.upper()) \
+                    .tag("token_symbol", token_symbol.upper())
 
-        for entry in price_data:
-            # Create a Point object for each entry.
-            point = Point(measurement_name=token_name.upper()) \
-                .tag("token_symbol", token_symbol.upper())
+                # Add all other dictionary keys (except 'time') as "fields"
+                for key, value in entry.items():
+                    # convert timestamp from string to datetime
+                    timestamp = entry['timestamp']
+                    timestamp = datetime.fromisoformat(timestamp) if isinstance(timestamp, str) else timestamp
 
-            # Add all other dictionary keys (except 'time') as "fields"
-            for key, value in entry.items():
-                # convert time from string to datetime
-                time = entry['time']
-                time = datetime.fromisoformat(time) if isinstance(time, str) else time
+                    point = point.time(_format_timestamp(timestamp))
 
-                point = point.time(_format_timestamp(time))
+                    if key != "timestamp":
+                        try:
+                            point = point.field(key, float(value))
+                        except (ValueError, TypeError):
+                            # Handle cases where a value might not be numeric
+                            logger.warning(f"Skipping non-numeric value for key '{key}' in {token_name} data.")
 
-                if key != "time":
-                    try:
-                        point = point.field(key, float(value))
-                    except (ValueError, TypeError):
-                        # Handle cases where a value might not be numeric
-                        logger.warning(f"Skipping non-numeric value for key '{key}' in {token_name} data.")
-
-            points_to_write.append(point)
-
-        try:
-            logger.info(f"Writing {len(points_to_write)} points to bucket '{BUCKET}'...")
-            # Write the entire list of points to InfluxDB in a single batch
-            write_api.write(bucket=BUCKET, org=ORG, record=points_to_write)
-            logger.info("Successfully wrote data to InfluxDB.")
-            return True
-        except Exception as e:
-            logger.error(f"An error occurred while writing to InfluxDB: {e}")
-            return False
+                points_to_write.append(point)
+                
+                logger.info(f"Writing {len(points_to_write)} points to bucket '{BUCKET}'...")
+                # Write the entire list of points to InfluxDB in a single batch
+                write_api.write(bucket=BUCKET, org=ORG, record=points_to_write)
+                logger.info("Successfully wrote data to InfluxDB.")
+        return True
+    except Exception as e:
+        logger.error(f"An error occurred while writing to InfluxDB: {e}")
+        return False
         
 
 def get_price_data(token_name: str, token_symbol: str) -> list[dict]:
