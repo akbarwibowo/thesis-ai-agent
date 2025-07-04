@@ -25,7 +25,7 @@ TOKEN = str(getenv("INFLUXDB_TOKEN"))
 ORG = str(getenv("INFLUXDB_ORG"))
 URL = str(getenv("INFLUXDB_URL"))
 
-def save_price_data(token_name: str, token_symbol: str, price_data: List[Dict]):
+def save_price_data(token_name: str, token_symbol: str, price_data: List[Dict]) -> bool:
     """
     Saves a list of time-series price data points to InfluxDB.
 
@@ -88,7 +88,7 @@ def save_price_data(token_name: str, token_symbol: str, price_data: List[Dict]):
             return False
         
 
-def get_price_data(token_name: str, token_symbol: str):
+def get_price_data(token_name: str, token_symbol: str) -> list[dict]:
     """
     Retrieves time-series price data from InfluxDB for a specific token.
 
@@ -104,7 +104,7 @@ def get_price_data(token_name: str, token_symbol: str):
     """
     if not all([URL, TOKEN, ORG, BUCKET]):
         logger.error("InfluxDB environment variables are not fully configured.")
-        return None
+        return []
 
     try:
         with InfluxDBClient(url=URL, token=TOKEN, org=ORG) as client:
@@ -152,7 +152,7 @@ def get_price_data(token_name: str, token_symbol: str):
             
     except Exception as e:
         logger.error(f"An error occurred while querying InfluxDB: {e}")
-        return None
+        return []
 
 
 def get_timestamp_range(token_name: str, token_symbol: str):
@@ -251,7 +251,7 @@ def format_timestamp(timestamp):
     return formatted
 
 
-def delete_price_data(token_name: str, token_symbol: str):
+def delete_price_data(token_name: str, token_symbol: str) -> bool:
     """
     Deletes time-series price data from InfluxDB for a specific token.
 
