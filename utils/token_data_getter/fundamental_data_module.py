@@ -387,7 +387,6 @@ def get_fundamental_data_of_tokens(token_ids: list) -> list:
                     logger.info(f"Deleting outdated data for {token_id} from DB")
                     delete_document(token_id, existing_data[0])
                     logger.info(f"Deleted outdated data for {token_id} from DB")
-                    break
 
             data = get_fundamental_data(token_id)
             if data:
