@@ -77,6 +77,26 @@ def _get_token_price_data(token_id: str) -> list[dict]:
 
 
 def get_price_data_of_tokens(token_ids: list[str]) -> list[dict]:
+    """
+    Fetch price data for a list of tokens.
+    Args:
+        token_ids (list[str]): A list of token IDs to fetch price data for.
+    Returns:
+        list[dict]: A list of dictionaries containing price data for each token.
+            Each dictionary has the following structure:
+            [
+                {
+                    "token_id": str,
+                    "price_data": [
+                        {
+                            "timestamp": "YYYY-MM-DD",
+                            "price": float,
+                            "volume": float
+                        },
+                    ]
+                },
+            ]
+    """
     try:
         all_data = []
         for token_id in token_ids:
