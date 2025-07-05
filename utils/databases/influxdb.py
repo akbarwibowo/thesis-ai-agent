@@ -97,7 +97,7 @@ def get_price_data(token_name: str, token_symbol: str) -> list[dict]:
 
     Returns:
         list: A list of dictionaries containing the retrieved data points.
-              Each dictionary represents a data point with keys for time and fields
+              Each dictionary represents a data point with keys for timestamp and fields
               like open, high, low, close, and volume.
         None: If an error occurs or no data is found.
     """
@@ -125,27 +125,27 @@ def get_price_data(token_name: str, token_symbol: str) -> list[dict]:
             if not result:
                 logger.info(f"No data found for {token_symbol}.")
                 return []
-            
-            # Group the records by time to reconstruct complete data points
-            time_grouped_data = {}
-            
+
+            # Group the records by timestamp to reconstruct complete data points
+            timestamp_grouped_data = {}
+
             for table in result:
                 for record in table.records:
-                    # Get the time and convert to ISO format
-                    time_str = record.get_time().isoformat() + "Z"
+                    # Get the timestamp and convert to ISO format
+                    timestamp_str = record.get_time().isoformat()
                     field = record.get_field()
                     value = record.get_value()
                     
                     # Initialize the data point if it doesn't exist
-                    if time_str not in time_grouped_data:
-                        time_grouped_data[time_str] = {"time": time_str}
-                    
+                    if timestamp_str not in timestamp_grouped_data:
+                        timestamp_grouped_data[timestamp_str] = {"timestamp": timestamp_str}
+
                     # Add the field value
-                    time_grouped_data[time_str][field] = value
-            
+                    timestamp_grouped_data[timestamp_str][field] = value
+
             # Convert the dictionary to a list
-            data_points = list(time_grouped_data.values())
-            
+            data_points = list(timestamp_grouped_data.values())
+
             logger.info(f"Retrieved {len(data_points)} data points for '{token_symbol}'.")
             return data_points
             
