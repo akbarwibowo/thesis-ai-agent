@@ -11,7 +11,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.join(current_dir, '..', '..')
 sys.path.insert(0, project_root)
 
-from utils.databases.influxdb import save_price_data, delete_price_data, get_price_data
+from utils.databases.influxdb import save_price_data, get_price_data
 from tokens_identity import get_token_identity
 
 # Configure logger
@@ -152,23 +152,3 @@ def save_price_data_to_db(price_data: list) -> dict:
     except Exception as e:
         logger.error(f"Error saving price data to DB: {e}")
         return {"status": "error", "message": str(e)}
-
-
-if __name__ == "__main__":
-    # Example usage
-    token_ids = ["bitcoin", "ethereum", "ripple"]
-    price_data = get_price_data_of_tokens(token_ids)
-    for price in price_data:
-        print(price)
-        print("-" * 20)
-    # if price_data:
-    #     print(price_data)
-    #     save_status = save_price_data_to_db(price_data)
-    #     logger.info(f"Save status: {save_status}")
-    # else:
-    #     logger.warning("No price data retrieved.")
-    
-    # retrieve_data = get_price_data("bitcoin", "btc")
-    # print(type(retrieve_data))
-    # print(retrieve_data)
-    # print(_get_token_price_data("bitcoin"))
