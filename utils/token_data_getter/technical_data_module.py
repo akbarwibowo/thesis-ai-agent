@@ -50,9 +50,9 @@ def _get_token_price_data(token_id: str) -> list[dict]:
     url = f"{COINGECKO_ENDPOINT}coins/{token_id}/market_chart"
     params = {
             "vs_currency": "usd",
-            "days": 365,
+            "days": "365",
             "interval": "daily",
-            "precision": 4
+            "precision": "4"
     }
     try:
         response = requests.get(url, params=params)
@@ -63,7 +63,7 @@ def _get_token_price_data(token_id: str) -> list[dict]:
         data = response.json()
         return_data = [
             {
-                "timestamp": datetime.fromtimestamp(price[0]).strftime("%Y-%m-%d"),
+                "timestamp": datetime.fromtimestamp(price[0] / 1000).strftime("%Y-%m-%d"),
                 "price": price[1],
                 "volume": volume[1]
             } for price, volume in zip(data.get("prices", []), data.get("total_volumes", []))
@@ -85,8 +85,11 @@ def get_price_data_of_tokens(token_ids: list[str]) -> list[dict]:
             existing_data = get_price_data(token_name=token_identity['name'], token_symbol=token_identity['symbol'])
             if existing_data:
                 existing_data_last_tick = existing_data[-1]['timestamp']
+                existing_data_last_tick = datetime.fromisoformat(existing_data_last_tick) if isinstance(existing_data_last_tick, str) else existing_data_last_tick
+                existing_data_last_tick = existing_data_last_tick.replace(tzinfo=None)
+                current_time = datetime.now()
                 # If the last tick is older than 7 days, we consider it stale
-                if existing_data_last_tick < datetime.now() - timedelta(days=7):
+                if (current_time - existing_data_last_tick) < timedelta(days=7):
                     logger.info(f"Found existing data for {token_id} in InfluxDB")
                     all_data.append({
                         "token_id": token_id,
@@ -100,12 +103,6 @@ def get_price_data_of_tokens(token_ids: list[str]) -> list[dict]:
                     "token_id": token_id,
                     "price_data": new_data
                 })
-                logging.info("append new data to DB")
-                save_price_data(
-                    token_name=token_identity['name'],
-                    token_symbol=token_identity['symbol'],
-                    price_data=new_data
-                )
         return all_data
     except Exception as e:
         logger.error(f"Error fetching price data for tokens: {e}")
@@ -155,3 +152,23 @@ def save_price_data_to_db(price_data: list) -> dict:
     except Exception as e:
         logger.error(f"Error saving price data to DB: {e}")
         return {"status": "error", "message": str(e)}
+
+
+if __name__ == "__main__":
+    # Example usage
+    token_ids = ["bitcoin", "ethereum", "ripple"]
+    price_data = get_price_data_of_tokens(token_ids)
+    for price in price_data:
+        print(price)
+        print("-" * 20)
+    # if price_data:
+    #     print(price_data)
+    #     save_status = save_price_data_to_db(price_data)
+    #     logger.info(f"Save status: {save_status}")
+    # else:
+    #     logger.warning("No price data retrieved.")
+    
+    # retrieve_data = get_price_data("bitcoin", "btc")
+    # print(type(retrieve_data))
+    # print(retrieve_data)
+    # print(_get_token_price_data("bitcoin"))

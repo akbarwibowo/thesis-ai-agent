@@ -373,9 +373,9 @@ def get_fundamental_data_of_tokens(token_ids: list) -> list:
             # check token collection in DB
             existing_data = retrieve_documents(token_id)
             if isinstance(existing_data, list) and existing_data and 'fundamental_data' in existing_data[0]:
-                today = datetime.now()
+                current_time = datetime.now()
                 updated_date = existing_data[0]["updated"]
-                if updated_date - today < timedelta(weeks=4):
+                if current_time - updated_date < timedelta(weeks=4):
                     all_data.append({
                         "token_id": token_id,
                         "fundamental_data": existing_data[0]
