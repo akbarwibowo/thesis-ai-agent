@@ -114,7 +114,7 @@ def get_narrative_data(
 
 def save_narrative_data_to_db(narrative_data: list[dict[str, str]]) -> bool:
     """
-    Save narrative data to MongoDB collection.
+    Save narrative data to MongoDB collection with collection name is "narrative_data"
     Args:
         narrative_data (list[dict[str, str]]): The narrative data to save.
     Returns:
