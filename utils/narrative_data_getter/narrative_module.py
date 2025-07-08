@@ -25,6 +25,8 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+collection_name = "narrative_data"
+
 def _cleanup_asyncio():
     """Clean up asyncio resources properly."""
     try:
@@ -118,7 +120,6 @@ def save_narrative_data_to_db(narrative_data: list[dict[str, str]]) -> bool:
     Returns:
         bool: True if saving is successful, False otherwise.
     """
-    collection_name = "narrative_data"
     if not narrative_data:
         logger.warning("No narrative data to save.")
         return False
