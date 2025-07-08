@@ -5,7 +5,7 @@ import io
 import os
 import sys
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from urllib.parse import urlparse
 from PyPDF2 import PdfReader
 from dotenv import load_dotenv, find_dotenv
@@ -76,6 +76,7 @@ def _extract_text_from_pdf(pdf_content: bytes) -> str:
 
 def _scrape_whitepaper(url: str, timeout: int = 30) -> str:
     """Scrape text content from a whitepaper URL (supports both PDF and web content).
+    If HTML page contains PDF links, will automatically follow and scrape the PDF.
 
     Args:
         url (str): The URL of the whitepaper to scrape.
@@ -123,41 +124,27 @@ def _scrape_whitepaper(url: str, timeout: int = 30) -> str:
             # Parse HTML content
             soup = BeautifulSoup(response.content, 'html.parser')
             
-            # Remove script and style elements
-            for script in soup(["script", "style", "nav", "footer", "header", "aside"]):
-                script.decompose()
+            # First, try to find PDF links in the HTML page
+            pdf_link = _find_pdf_link_in_html(soup, url)
+            if pdf_link:
+                logger.info(f"Found PDF link in HTML page: {pdf_link}")
+                try:
+                    # Follow the PDF link and extract text
+                    pdf_response = requests.get(pdf_link, headers=headers, timeout=timeout)
+                    pdf_response.raise_for_status()
+                    text_content = _extract_text_from_pdf(pdf_response.content)
+                    if text_content:
+                        logger.info(f"Successfully extracted text from PDF link: {pdf_link}")
+                        content_type = "PDF (from HTML link)"
+                        cleaned_text = _clean_text(text_content)
+                        logger.info(f"Successfully scraped {len(cleaned_text)} characters from {content_type}: {url}")
+                        return cleaned_text
+                except Exception as e:
+                    logger.warning(f"Failed to scrape PDF from link {pdf_link}: {e}")
+                    # Fall back to HTML scraping
             
-            # Remove common navigation and advertisement elements
-            unwanted_classes = [
-                'nav', 'navigation', 'menu', 'sidebar', 'footer', 'header',
-                'advertisement', 'ad', 'ads', 'cookie', 'popup', 'modal',
-                'social', 'share', 'comment', 'comments'
-            ]
-            
-            for class_name in unwanted_classes:
-                for element in soup.find_all(attrs={'class': re.compile(class_name, re.I)}):
-                    element.decompose()
-            
-            # Extract text from main content areas first
-            main_content_selectors = [
-                'main', 'article', '[role="main"]', '.main-content', 
-                '.content', '.post-content', '.entry-content', '.article-content'
-            ]
-            
-            text_content = ""
-            
-            # Try to find main content first
-            for selector in main_content_selectors:
-                main_element = soup.select_one(selector)
-                if main_element:
-                    text_content = main_element.get_text()
-                    logger.debug(f"Found main content using selector: {selector}")
-                    break
-            
-            # If no main content found, get all text
-            if not text_content:
-                text_content = soup.get_text()
-                logger.debug("Using full page text content")
+            # If no PDF found or PDF scraping failed, proceed with HTML scraping
+            text_content = _extract_text_from_html(soup)
         
         # Clean the text
         cleaned_text = _clean_text(text_content)
@@ -171,6 +158,273 @@ def _scrape_whitepaper(url: str, timeout: int = 30) -> str:
         return ""
     except Exception as e:
         logger.error(f"Error scraping whitepaper {url}: {e}")
+        return ""
+
+
+def _find_pdf_link_in_html(soup: BeautifulSoup, base_url: str) -> str:
+    """Find PDF links within an HTML page.
+
+    Args:
+        soup (BeautifulSoup): Parsed HTML content.
+        base_url (str): Base URL for resolving relative links.
+
+    Returns:
+        str: URL of the first PDF found, or empty string if none found.
+    """
+    try:
+        # Common patterns for PDF links
+        pdf_selectors = [
+            'a[href$=".pdf"]',  # Links ending with .pdf
+            'a[href*=".pdf"]',  # Links containing .pdf
+            'a[download][href*="pdf"]',  # Download links with pdf in href
+            'a[title*="PDF"]',  # Links with PDF in title
+            'a[title*="pdf"]',  # Links with pdf in title (lowercase)
+            'a[title*="whitepaper"]',  # Links with whitepaper in title
+            'a[title*="Whitepaper"]',  # Links with Whitepaper in title
+            'a[aria-label*="PDF"]',  # Links with PDF in aria-label
+            'a[aria-label*="pdf"]',  # Links with pdf in aria-label
+            'a:contains("PDF")',  # Links containing "PDF" text
+            'a:contains("pdf")',  # Links containing "pdf" text
+            'a:contains("Download")',  # Download links
+            'a:contains("download")',  # download links (lowercase)
+            'a:contains("Whitepaper")',  # Whitepaper links
+            'a:contains("whitepaper")',  # whitepaper links (lowercase)
+            'a:contains("Technical Paper")',  # Technical paper links
+            'a:contains("Research Paper")',  # Research paper links
+            'a:contains("Full Paper")',  # Full paper links
+            'a:contains("Read More")',  # Read more links that might lead to PDFs
+        ]
+        
+        from urllib.parse import urljoin
+        
+        for selector in pdf_selectors:
+            try:
+                if ':contains(' in selector:
+                    # Handle text-based selectors differently
+                    if 'PDF"' in selector:
+                        links = soup.find_all('a', string=lambda text: text is not None and 'PDF' in text)
+                    elif 'pdf"' in selector:
+                        links = soup.find_all('a', string=lambda text: text is not None and 'pdf' in text.lower())
+                    elif 'Download"' in selector:
+                        links = soup.find_all('a', string=lambda text: text is not None and 'Download' in text)
+                    elif 'download"' in selector:
+                        links = soup.find_all('a', string=lambda text: text is not None and 'download' in text.lower())
+                    elif 'Whitepaper"' in selector:
+                        links = soup.find_all('a', string=lambda text: text is not None and 'Whitepaper' in text)
+                    elif 'whitepaper"' in selector:
+                        links = soup.find_all('a', string=lambda text: text is not None and 'whitepaper' in text.lower())
+                    elif 'Technical Paper"' in selector:
+                        links = soup.find_all('a', string=lambda text: text is not None and 'Technical Paper' in text)
+                    elif 'Research Paper"' in selector:
+                        links = soup.find_all('a', string=lambda text: text is not None and 'Research Paper' in text)
+                    elif 'Full Paper"' in selector:
+                        links = soup.find_all('a', string=lambda text: text is not None and 'Full Paper' in text)
+                    elif 'Read More"' in selector:
+                        links = soup.find_all('a', string=lambda text: text is not None and 'Read More' in text)
+                    else:
+                        continue
+                else:
+                    links = soup.select(selector)
+                
+                for link in links:
+                    # Only process Tag objects, not NavigableString
+                    if isinstance(link, Tag):
+                        href = link.get('href')
+                        if href and isinstance(href, str):
+                            # Convert relative URLs to absolute
+                            full_url = urljoin(base_url, href)
+                            # Verify it's actually a PDF link
+                            if '.pdf' in full_url.lower():
+                                logger.debug(f"Found potential PDF link: {full_url}")
+                                return full_url
+            except Exception as e:
+                logger.debug(f"Error with selector {selector}: {e}")
+                continue
+        
+        # Additional check for embedded PDF objects and iframes
+        pdf_objects = soup.find_all(['object', 'embed', 'iframe'])
+        for obj in pdf_objects:
+            if isinstance(obj, Tag):
+                data_url = obj.get('data') or obj.get('src')
+                if data_url and isinstance(data_url, str) and '.pdf' in data_url.lower():
+                    full_url = urljoin(base_url, data_url)
+                    logger.debug(f"Found PDF object: {full_url}")
+                    return full_url
+        
+        # Check for meta tags that might reference PDFs
+        meta_tags = soup.find_all('meta', attrs={'content': True})
+        for meta in meta_tags:
+            if isinstance(meta, Tag):
+                content = meta.get('content')
+                if content and isinstance(content, str) and '.pdf' in content.lower():
+                    full_url = urljoin(base_url, content)
+                    logger.debug(f"Found PDF in meta tag: {full_url}")
+                    return full_url
+        
+        logger.debug("No PDF links found in HTML page")
+        return ""
+        
+    except Exception as e:
+        logger.error(f"Error finding PDF links in HTML: {e}")
+        return ""
+
+
+def _extract_text_from_html(soup: BeautifulSoup) -> str:
+    """Extract text content from HTML using improved selectors.
+
+    Args:
+        soup (BeautifulSoup): Parsed HTML content.
+
+    Returns:
+        str: Extracted text content.
+    """
+    try:
+        # Remove script and style elements
+        for script in soup(["script", "style", "nav", "footer", "header", "aside", "meta", "link"]):
+            script.decompose()
+        
+        # Remove common navigation and advertisement elements
+        unwanted_classes = [
+            'nav', 'navigation', 'menu', 'sidebar', 'footer', 'header',
+            'advertisement', 'ad', 'ads', 'cookie', 'popup', 'modal',
+            'social', 'share', 'comment', 'comments', 'breadcrumb',
+            'pagination', 'related', 'similar', 'recommended'
+        ]
+        
+        for class_name in unwanted_classes:
+            for element in soup.find_all(attrs={'class': re.compile(class_name, re.I)}):
+                element.decompose()
+        
+        # Remove elements by ID patterns
+        unwanted_ids = ['header', 'footer', 'nav', 'sidebar', 'menu', 'ads', 'comments']
+        for id_name in unwanted_ids:
+            for element in soup.find_all(attrs={'id': re.compile(id_name, re.I)}):
+                element.decompose()
+        
+        # Improved content selectors with priority order
+        main_content_selectors = [
+            # Primary content areas
+            'main',
+            'article',
+            '[role="main"]',
+            '.main-content',
+            '.content',
+            '.post-content',
+            '.entry-content',
+            '.article-content',
+            '.page-content',
+            
+            # Common CMS selectors
+            '.content-area',
+            '.site-content',
+            '.primary-content',
+            '#content',
+            '#main',
+            '#primary',
+            
+            # Whitepaper and document specific selectors
+            '.whitepaper',
+            '.document',
+            '.paper',
+            '.abstract',
+            '.executive-summary',
+            '.technical-paper',
+            '.documentation',
+            '.doc-content',
+            '.markdown-body',  # GitHub-style docs
+            '.readme',
+            
+            # Technical documentation patterns
+            '.container .content',
+            '.main-wrapper',
+            '.content-wrapper',
+            '.body-content',
+            '.post-body',
+            '.article-body',
+            '.text-content',
+            
+            # Blog/news patterns
+            '.entry',
+            '.post',
+            '.article',
+            '.story',
+            '.news-content',
+            
+            # Research paper patterns
+            '.research-content',
+            '.academic-content',
+            '.publication-content',
+            
+            # General content containers
+            '.container .row',
+            '.wrapper',
+            'section',
+            '.section',
+            
+            # Fallback - look for largest text block
+            'div',
+        ]
+        
+        text_content = ""
+        
+        # Try each selector in order of priority
+        for selector in main_content_selectors:
+            try:
+                elements = soup.select(selector)
+                
+                # If multiple elements found, pick the one with most text
+                if elements:
+                    best_element = None
+                    max_text_length = 0
+                    
+                    for element in elements:
+                        element_text = element.get_text(strip=True)
+                        if len(element_text) > max_text_length:
+                            max_text_length = len(element_text)
+                            best_element = element
+                    
+                    if best_element and max_text_length > 200:  # Minimum meaningful content
+                        text_content = best_element.get_text(separator=' ', strip=True)
+                        logger.debug(f"Found main content using selector: {selector} ({max_text_length} chars)")
+                        break
+                        
+            except Exception as e:
+                logger.debug(f"Error with selector {selector}: {e}")
+                continue
+        
+        # If no structured content found, try paragraph-based extraction
+        if not text_content or len(text_content) < 200:
+            logger.debug("Trying paragraph-based extraction")
+            
+            # Look for paragraphs and text-heavy elements
+            text_elements = soup.find_all(['p', 'div', 'span', 'td', 'li'])
+            paragraph_texts = []
+            
+            for element in text_elements:
+                if isinstance(element, Tag):
+                    element_text = element.get_text(strip=True)
+                    # Filter out short paragraphs that are likely navigation/ads
+                    if (element_text and 
+                        len(element_text) > 30 and 
+                        len(element_text.split()) > 5 and
+                        # Avoid duplicates by checking if it's already in a parent element
+                        not any(element_text in existing for existing in paragraph_texts)):
+                        paragraph_texts.append(element_text)
+            
+            if paragraph_texts:
+                text_content = ' '.join(paragraph_texts)
+                logger.debug(f"Extracted text from {len(paragraph_texts)} elements")
+        
+        # Ultimate fallback - get all text
+        if not text_content or len(text_content) < 100:
+            logger.debug("Using full page text content as fallback")
+            text_content = soup.get_text(separator=' ', strip=True)
+        
+        logger.info(f"Extracted {len(text_content)} characters from HTML")
+        return text_content
+        
+    except Exception as e:
+        logger.error(f"Error extracting text from HTML: {e}")
         return ""
 
 
