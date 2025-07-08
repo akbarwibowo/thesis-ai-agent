@@ -12,7 +12,7 @@ project_root = os.path.join(current_dir, '..', '..')
 sys.path.insert(0, project_root)
 
 from utils.databases.influxdb import save_price_data, get_price_data
-from tokens_identity import get_token_identity
+from utils.token_data_getter.tokens_identity import get_token_identity
 
 # Configure logger
 logging.basicConfig(
