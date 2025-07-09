@@ -92,8 +92,6 @@ def delete_collection(name: str):
         error_msg = f"Error deleting collection: {str(e)}"
         logger.error(error_msg)
         return False
-    finally:
-        client.close()
 
 
 def delete_document(collection_name: str, filter: dict) -> bool:
@@ -120,8 +118,6 @@ def delete_document(collection_name: str, filter: dict) -> bool:
         error_msg = f"Error deleting document: {str(e)}"
         logger.error(error_msg)
         return False
-    finally:
-        client.close()
 
 
 def retrieve_document(collection_name: str, filter: dict) -> dict:
