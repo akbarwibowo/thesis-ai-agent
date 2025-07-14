@@ -32,3 +32,4 @@ class NAOverallState(NAInputState, NAOutputState):
     db_collection: str
     chunked_documents: List[List[dict[str, str]]]
     reduced_documents: List[NAMapReducer]
+    final_na_report: str
