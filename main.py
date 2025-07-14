@@ -59,5 +59,20 @@ if __name__ == "__main__":
             print("Failed to save technical data.")
     else:
         print("No technical data found.")
-    
+
+    for token in ta_data:
+        price_data = [price['price'] for price in token.get('price_data', [])]
+
+        rsi = indicator_module.calculate_rsi(price_data, period=14)
+        sma = indicator_module.calculate_sma(price_data, period=21)
+        ema = indicator_module.calculate_ema(price_data, period=13)
+
+        token['indicators'] = {
+            'rsi': rsi,
+            'sma': sma,
+            'ema': ema
+        }
+
+        print(token)
+        print("---" * 20)
 

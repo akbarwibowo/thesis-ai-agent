@@ -16,7 +16,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.join(current_dir, '..', '..')
 sys.path.insert(0, project_root)
 
-from utils.databases.mongodb import insert_documents, retrieve_documents, delete_document
+from agents.tools.databases.mongodb import insert_documents, retrieve_documents, delete_document
 
 # Configure logger
 logging.basicConfig(

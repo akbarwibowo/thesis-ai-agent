@@ -9,10 +9,10 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.join(current_dir, '..', '..')
 sys.path.insert(0, project_root)
 
-from utils.narrative_data_getter.news_data_getter import get_coindesk, get_crypto_panic
-from utils.narrative_data_getter.twitter_scraper import scrape_crypto_tweets
-from utils.narrative_data_getter.cointelegraph_scraper import scrape_cointelegraph_news
-from utils.databases.mongodb import insert_documents, retrieve_documents, delete_collection
+from agents.tools.narrative_data_getter.news_data_getter import get_coindesk, get_crypto_panic
+from agents.tools.narrative_data_getter.twitter_scraper import scrape_crypto_tweets
+from agents.tools.narrative_data_getter.cointelegraph_scraper import scrape_cointelegraph_news
+from agents.tools.databases.mongodb import insert_documents, retrieve_documents, delete_collection
 
 
 logging.basicConfig(
@@ -83,7 +83,7 @@ def get_narrative_data(
         cointelegraph_max_articles (int): The maximum number of articles to scrape from Cointelegraph.
 
     Returns:
-        list: A list of narrative data articles with title, description, source, and published_at fields.
+        list: A list of narrative data articles with id, title, description, source, and published_at fields.
     """
     try:
         narrative_data = asyncio.run(_parallel_runner(
