@@ -1,4 +1,5 @@
-from typing import List, TypedDict
+from typing import List, TypedDict, Annotated
+from operator import add
 
 
 
@@ -24,5 +25,5 @@ class NAOverallState(TypedDict):
 
 class NAMapReducer(TypedDict):
     """the map reducer for narrative data"""
-    reduce: str
-    evidence: List[str | int]
+    reduce: Annotated[List[str], add]
+    evidence: Annotated[List[str | int], add]
