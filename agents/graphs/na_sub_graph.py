@@ -116,10 +116,46 @@ def narrative_analysis_node(state: NAOverallState):
             "quote": doc.quote,
             "evidence_id": doc.evidence_id
         })
-    
-    
 
-    return {"narrative_analysis": "AI-generated narrative analysis", "evidence": [1, 2, 3]}
+    system_prompt = """
+    You are an expert-level cryptocurrency market analyst. Your primary skill is synthesizing large volumes of information from news articles and social media posts to identify the single most significant, emerging market narrative. You are a master at pattern recognition and making connections between disparate pieces of information.
+
+    Your analysis must be objective, data-driven, and strictly based on the information provided. Do not introduce any outside knowledge or speculation. Your most important duty is to provide concrete evidence for every claim you make by citing the specific documents that support your conclusions.
+    """
+    
+    user_prompt = """
+    You have been provided with a list of document summaries. Each summary represents a small batch of recent news articles and social media posts. The content of each summary is a concise analysis of the topics, projects, and sentiment discussed within its original documents.
+
+    Your task is to perform the following steps:
+
+    Synthesize All Summaries: Read through all the provided summaries to get a holistic view of the current market conversation.
+
+    Identify the Dominant Narrative: Determine the single most significant, emerging narrative. This could be a technology (e.g., "AI & Crypto"), a sector (e.g., "Real World Assets - RWA"), or a market trend (e.g., "Institutional DeFi Adoption").
+
+    Construct a Detailed Analysis: Write a comprehensive analysis explaining why this narrative is emerging. Your analysis should cover key aspects such as:
+
+    The core concept of the narrative.
+
+    The key projects or players involved.
+
+    The primary drivers (e.g., new technology, institutional investment, regulatory changes, high-profile partnerships).
+
+    Provide Evidence with Citations: This is the most critical step. For every claim or key point in your analysis, you MUST provide supporting evidence by citing the id of the original document(s) that support that claim. You should format citations as [id]. You can cite multiple documents for a single claim, like [id_1, id_2, id_3].
+
+    Your final output must be a single, well-structured markdown block. Do not include any conversational text before or after your analysis.
+
+    If a narrative is identified: Structure your output with a main title for the narrative, followed by your detailed analysis with citations.
+
+    If no significant narrative is identified: Your output should be a single line: No significant emerging narrative was identified from the provided data.
+
+    Example of a good analysis output (if a narrative is found):
+
+    Emerging Narrative: Institutional Adoption of Real World Assets (RWA)
+    The primary driver behind the RWA trend appears to be direct institutional involvement. Major financial players are no longer just observing; they are actively building products in this space [101]. This move has been further validated by significant on-chain data showing a 40% increase in capital inflows to relevant protocols over the last month [210, 211].
+
+    """
+    result = llm.invoke([SystemMessage(content=system_prompt)]+[HumanMessage(content=user_prompt)], documents=documents)
+    return {"final_na_report": result}
 
 na_graph = StateGraph(NAOverallState, input_schema=NAInputState, output_schema=NAOutputState)
 na_graph.add_node('scraping', scraping_node)
