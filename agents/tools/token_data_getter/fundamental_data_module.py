@@ -629,7 +629,7 @@ def get_fundamental_data_of_tokens(token_ids: list) -> list:
             if isinstance(existing_data, list) and existing_data:
                 current_time = datetime.now()
                 updated_date = existing_data[0]["updated"]
-                if current_time - updated_date < timedelta(weeks=4):
+                if current_time - updated_date > timedelta(weeks=4):
                     all_data.append({
                         "token_id": token_id,
                         "fundamental_data": existing_data[0]
