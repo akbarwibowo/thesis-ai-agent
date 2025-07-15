@@ -212,31 +212,36 @@ def narrative_analysis_node(state: NAOverallState) -> NAOutputState:
 
     return {"final_na_report": final_report_structure}
 
-logger.info("Setting up Narrative Analysis (NA) graph")
 
-na_graph = StateGraph(NAOverallState, input_schema=NAInputState, output_schema=NAOutputState)
-na_graph.add_node('scraping', scraping_node)
-na_graph.add_node('retrieve', retrieve_node)
-na_graph.add_node('map_reduces', map_reduces_node)
-na_graph.add_node('narrative_analysis', narrative_analysis_node)
+def na_graph():
+    """
+    Narrative Analysis (NA) graph setup.
+    Input State:
+    - twitter_scrape_keywords: List of keywords for Twitter scraping.
+    - twitter_scrape_max_tweets: Maximum number of tweets to scrape.
+    - cointelegraph_max_articles: Maximum number of articles to scrape from Cointelegraph.
 
-na_graph.add_edge(START, 'scraping')
-na_graph.add_edge('scraping', 'retrieve')
-na_graph.add_edge('retrieve', 'map_reduces')
-na_graph.add_edge('map_reduces', 'narrative_analysis')
-na_graph.add_edge('narrative_analysis', END)
+    Output State:
+    - final_na_report: The final narrative analysis report.
+    """
+    logger.info("Setting up Narrative Analysis (NA) graph")
 
-logger.info("Graph nodes and edges configured successfully")
+    na_graph = StateGraph(NAOverallState, input_schema=NAInputState, output_schema=NAOutputState)
+    na_graph.add_node('scraping', scraping_node)
+    na_graph.add_node('retrieve', retrieve_node)
+    na_graph.add_node('map_reduces', map_reduces_node)
+    na_graph.add_node('narrative_analysis', narrative_analysis_node)
 
-graph = na_graph.compile()
+    na_graph.add_edge(START, 'scraping')
+    na_graph.add_edge('scraping', 'retrieve')
+    na_graph.add_edge('retrieve', 'map_reduces')
+    na_graph.add_edge('map_reduces', 'narrative_analysis')
+    na_graph.add_edge('narrative_analysis', END)
 
-logger.info("Graph compiled successfully")
+    logger.info("Graph nodes and edges configured successfully")
 
-config = {"configurable": {"thread_id": "1"}}
+    graph = na_graph.compile()
 
-logger.info("Starting graph execution with configuration: %s", config)
+    logger.info("Graph compiled successfully")
 
-result = graph.invoke({"twitter_scrape_keywords": [], "twitter_scrape_max_tweets": 10, "cointelegraph_max_articles": 10}, config) # type: ignore
-
-logger.info("Graph execution completed successfully")
-logger.info("Final result keys: %s", list(result.keys()) if isinstance(result, dict) else "Non-dict result")
+    return graph
