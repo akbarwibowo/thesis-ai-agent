@@ -12,10 +12,10 @@ class NAInputState(TypedDict):
 
 
 
-class NAOutputState(TypedDict):
+class NAOutput(BaseModel):
     """the output of the narrative sub-graph"""
-    narrative_analysis: str
-    evidence: List[str | int]
+    narrative_analysis: str = Field(description="the report of narrative analysis")
+    evidence: List[str | int] = Field(description="the evidence id(s) being used to support the analysis result without dupliacates")
 
 
 
@@ -27,9 +27,13 @@ class NAMapReducer(BaseModel):
 
 
 
+class NAOutputState(TypedDict):
+    final_na_report: str
+
+
+
 class NAOverallState(NAInputState, NAOutputState):
     """the overall state of the narrative sub-graph"""
     db_collection: str
     chunked_documents: List[List[dict[str, str]]]
     reduced_documents: List[NAMapReducer]
-    final_na_report: str
