@@ -5,6 +5,8 @@ import os
 import asyncio
 import atexit
 
+from datetime import datetime, timedelta
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.join(current_dir, '..', '..')
 sys.path.insert(0, project_root)
@@ -12,7 +14,7 @@ sys.path.insert(0, project_root)
 from agents.tools.narrative_data_getter.news_data_getter import get_coindesk, get_crypto_panic
 from agents.tools.narrative_data_getter.twitter_scraper import scrape_crypto_tweets
 from agents.tools.narrative_data_getter.cointelegraph_scraper import scrape_cointelegraph_news
-from agents.tools.databases.mongodb import insert_documents, retrieve_documents, delete_collection
+from agents.tools.databases.mongodb import insert_documents, retrieve_documents, delete_document
 
 
 logging.basicConfig(
@@ -125,6 +127,14 @@ def save_narrative_data_to_db(narrative_data: list[dict[str, str]]) -> bool:
         return False
 
     try:
+        existing_documents = retrieve_documents(collection_name=collection_name)
+        if existing_documents:
+            for doc in existing_documents:
+                doc_date = datetime.fromisoformat(str(doc.get('published_at')))
+                if datetime.now() - doc_date > timedelta(days=30):
+                    logger.info(f"Removing old document from {collection_name}: {doc}")
+                    # Remove old document
+                    delete_document(collection_name=collection_name, filter=doc)
         insert_documents(collection_name, narrative_data)
         logger.info(f"Successfully saved narrative data to {collection_name}.")
         return True
