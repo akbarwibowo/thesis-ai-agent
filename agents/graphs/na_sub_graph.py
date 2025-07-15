@@ -22,7 +22,6 @@ from agents.tools.narrative_data_getter.narrative_module import get_narrative_da
 from agents.tools.databases.mongodb import retrieve_documents
 from agents.schemas.na_agent_schema import NAInputState, NAMapReducer, NAOutput, NAOverallState, NAOutputState
 from agents.llm_model import llm_model
-from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import START, END, StateGraph
 from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -229,10 +228,9 @@ na_graph.add_edge('narrative_analysis', END)
 
 logger.info("Graph nodes and edges configured successfully")
 
-memory = InMemorySaver()
-graph = na_graph.compile(checkpointer=memory)
+graph = na_graph.compile()
 
-logger.info("Graph compiled with memory checkpointer")
+logger.info("Graph compiled successfully")
 
 config = {"configurable": {"thread_id": "1"}}
 
