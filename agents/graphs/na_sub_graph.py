@@ -6,6 +6,8 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.join(current_dir, '..', '..')
 sys.path.insert(0, project_root)
 
+# Create logger for this module
+logger = logging.getLogger(__name__)
 
 logging.basicConfig(
     level=logging.INFO,  # Set to DEBUG to see debug messages too
@@ -18,7 +20,7 @@ logging.basicConfig(
 
 from agents.tools.narrative_data_getter.narrative_module import get_narrative_data, save_narrative_data_to_db, collection_name
 from agents.tools.databases.mongodb import retrieve_documents
-from agents.schemas.na_agent_schema import NAInputState, NAMapReducer, NAOutputState, NAOverallState
+from agents.schemas.na_agent_schema import NAInputState, NAMapReducer, NAOutput, NAOverallState, NAOutputState
 from agents.llm_model import llm_model
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import START, END, StateGraph
@@ -28,38 +30,63 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 def scraping_node(state: NAInputState):
     """Scrape narrative data from various sources and store it in the database."""
+    logger.info("Starting scraping_node execution")
+    
     twitter_scrape_keywords = state['twitter_scrape_keywords']
     twitter_max_tweets = state['twitter_scrape_max_tweets']
     cointelegraph_max_articles = state['cointelegraph_max_articles']
 
+    logger.info(f"Scraping parameters - Twitter keywords: {twitter_scrape_keywords}, Max tweets: {twitter_max_tweets}, CoinTelegraph articles: {cointelegraph_max_articles}")
+
+    logger.info("Calling get_narrative_data to scrape sources")
     documents = get_narrative_data(
         twitter_scrape_keywords=twitter_scrape_keywords,
         twitter_scrape_max_tweets=twitter_max_tweets,
         cointelegraph_max_articles=cointelegraph_max_articles
     )
+    
+    logger.info(f"Successfully scraped {len(documents)} documents")
+    logger.info("Saving narrative data to database")
     save_narrative_data_to_db(documents)
+    logger.info(f"Documents saved to collection: {collection_name}")
 
+    logger.info("scraping_node execution completed successfully")
     return {"db_collection": collection_name}
 
 
 def retrieve_node(state: NAOverallState):
     """Retrieve narrative data from the database."""
+    logger.info("Starting retrieve_node execution")
+    
     db_collection = state["db_collection"]
+    logger.info(f"Retrieving documents from collection: {db_collection}")
+    
     documents = retrieve_documents(db_collection)
+    logger.info(f"Retrieved {len(documents)} documents from database")
+    
+    chunk_length = 50
     chunked_documents = []
-    for i in range(len(documents)):
-        chunked_documents.append(documents[i:i + 10])  # Chunking documents into groups of 10
+    for i in range(0, len(documents), chunk_length):
+        chunked_documents.append(documents[i:i + chunk_length])  # Chunking documents into groups of chunk_length
 
+    logger.info(f"Documents chunked into {len(chunked_documents)} groups of up to {chunk_length} documents each")
+    logger.info("retrieve_node execution completed successfully")
     return {"chunked_documents": chunked_documents}
 
 
 def map_reduces_node(state: NAOverallState):
     """Map and reduce the narrative data."""
+    logger.info("Starting map_reduces_node execution")
+    
     structured_llm = llm_model.with_structured_output(NAMapReducer)
     documents = state["chunked_documents"]
     reduced_documents = []
 
-    for doc in documents:
+    logger.info(f"Processing {len(documents)} document chunks for map-reduce operation")
+    
+    for i, doc in enumerate(documents):
+        logger.info(f"Processing document chunk {i+1}/{len(documents)}")
+        
         system_prompt = """
         You are a highly efficient cryptocurrency related data processing engine. Your purpose is to read a small batch of documents (news articles and social media posts) and extract key information in a structured JSON format. You must be objective and only use information explicitly present in the provided text. Do not add any outside opinions or analysis.
         """
@@ -95,27 +122,37 @@ def map_reduces_node(state: NAOverallState):
         "evidence_id": []
         """
 
+        logger.info(f"Invoking LLM for chunk {i+1} with {len(doc)} documents")
         result = structured_llm.invoke([SystemMessage(content=system_prompt)]+[HumanMessage(content=user_prompt)])
-
+        logger.info(f"Chunk {i+1} processed successfully")
         reduced_documents.append(result)
 
-        
+    logger.info(f"Map-reduce completed. Generated {len(reduced_documents)} reduced document summaries")
+    logger.info(f"example of the recuded documents: {reduced_documents[0]}")
+    logger.info("map_reduces_node execution completed successfully")
     return {"reduced_documents": reduced_documents}
 
 
-def narrative_analysis_node(state: NAOverallState):
+def narrative_analysis_node(state: NAOverallState) -> NAOutputState:
     """AI node for narrative analysis"""
-    llm = llm_model
-
+    logger.info("Starting narrative_analysis_node execution")
+    
+    structured_llm = llm_model.with_structured_output(NAOutput)
+    
     reduced_documents = state["reduced_documents"]
+    logger.info(f"Processing {len(reduced_documents)} reduced documents for narrative analysis")
+    
     documents = []
 
-    for doc in reduced_documents:
+    for i, doc in enumerate(reduced_documents):
+        logger.info(f"Converting reduced document {i+1}/{len(reduced_documents)} to analysis format")
         documents.append({
             "description": doc.summary,
             "quote": doc.quote,
             "evidence_id": doc.evidence_id
         })
+
+    logger.info(f"Prepared {len(documents)} documents for final narrative analysis")
 
     system_prompt = """
     You are an expert-level cryptocurrency market analyst. Your primary skill is synthesizing large volumes of information from news articles and social media posts to identify the single most significant, emerging market narrative. You are a master at pattern recognition and making connections between disparate pieces of information.
@@ -123,7 +160,11 @@ def narrative_analysis_node(state: NAOverallState):
     Your analysis must be objective, data-driven, and strictly based on the information provided. Do not introduce any outside knowledge or speculation. Your most important duty is to provide concrete evidence for every claim you make by citing the specific documents that support your conclusions.
     """
     
-    user_prompt = """
+    user_prompt = f"""
+    <documents>
+    {documents}
+    </documents>
+
     You have been provided with a list of document summaries. Each summary represents a small batch of recent news articles and social media posts. The content of each summary is a concise analysis of the topics, projects, and sentiment discussed within its original documents.
 
     Your task is to perform the following steps:
@@ -154,8 +195,25 @@ def narrative_analysis_node(state: NAOverallState):
     The primary driver behind the RWA trend appears to be direct institutional involvement. Major financial players are no longer just observing; they are actively building products in this space [101]. This move has been further validated by significant on-chain data showing a 40% increase in capital inflows to relevant protocols over the last month [210, 211].
 
     """
-    result = llm.invoke([SystemMessage(content=system_prompt)]+[HumanMessage(content=user_prompt)], documents=documents)
-    return {"final_na_report": result}
+    
+    logger.info("Invoking LLM for final narrative analysis")
+    result = structured_llm.invoke([SystemMessage(content=system_prompt)]+[HumanMessage(content=user_prompt)])
+
+    logger.info(f"Narrative analysis completed - Report length: {len(str(result))} characters")
+    logger.info("narrative_analysis_node execution completed successfully")
+
+    result_str = result.narrative_analysis # type: ignore
+    result_evidence_str = str(result.evidence) # type: ignore
+    final_report_structure = f"""
+    # NARRATIVE REPORT
+    {result_str}
+    ## EVIDENCE ID
+    {result_evidence_str}
+    """
+
+    return {"final_na_report": final_report_structure}
+
+logger.info("Setting up Narrative Analysis (NA) graph")
 
 na_graph = StateGraph(NAOverallState, input_schema=NAInputState, output_schema=NAOutputState)
 na_graph.add_node('scraping', scraping_node)
@@ -169,12 +227,18 @@ na_graph.add_edge('retrieve', 'map_reduces')
 na_graph.add_edge('map_reduces', 'narrative_analysis')
 na_graph.add_edge('narrative_analysis', END)
 
+logger.info("Graph nodes and edges configured successfully")
+
 memory = InMemorySaver()
 graph = na_graph.compile(checkpointer=memory)
 
+logger.info("Graph compiled with memory checkpointer")
 
 config = {"configurable": {"thread_id": "1"}}
 
-result = graph.invoke({"twitter_scrape_keywords": ["crypto", "blockchain"], "twitter_scrape_max_tweets": 100, "cointelegraph_max_articles": 5}, config) # type: ignore
+logger.info("Starting graph execution with configuration: %s", config)
 
-print(result)
+result = graph.invoke({"twitter_scrape_keywords": [], "twitter_scrape_max_tweets": 10, "cointelegraph_max_articles": 10}, config) # type: ignore
+
+logger.info("Graph execution completed successfully")
+logger.info("Final result keys: %s", list(result.keys()) if isinstance(result, dict) else "Non-dict result")
