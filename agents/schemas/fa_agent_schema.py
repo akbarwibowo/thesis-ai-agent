@@ -13,7 +13,7 @@ class FAOutput(BaseModel):
     """the output of the fa sub-graph"""
     token_name: str = Field(description="The name of the token")
     fundamental_analysis: str = Field(description="The fundamental analysis results")
-    evidence: List[str] = Field(description="The evidence supporting the analysis based on the fundamental data without duplicates")
+    proof: List[str] = Field(description="The proofs supporting the analysis based on the fundamental data without duplicates")
 
 
 

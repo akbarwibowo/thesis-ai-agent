@@ -94,7 +94,7 @@ def fundamental_analysis_node(state: FAOverallState):
         Crucial Instructions:
         The "token_name" is just a string of the token name being analyzed.
         The "fundamental_analysis" value should be a single string containing your full, well-structured analysis in markdown format.
-        The "evidence" value should be data that support the analysis result, such as tokenomics data, quote from the whitepaper, etc.
+        The "proof" value should be data that support the analysis result, such as tokenomics data, quote from the whitepaper, etc.
         """
         
         logger.info(f"Invoking LLM for fundamental analysis of token {i+1}")
@@ -112,7 +112,7 @@ def fa_graph():
     - token_ids: List of token IDs to analyze.
 
     Output State:
-    - final_fa_report: The final fundamental analysis report. List of FAOutput objects containing token name, analysis, and evidence.
+    - final_fa_report: The final fundamental analysis report. List of FAOutput objects containing token name, analysis, and proof.
     """
 
     logger.info("Setting up Fundamental Analysis (FA) graph")
