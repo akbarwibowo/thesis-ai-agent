@@ -1,26 +1,29 @@
 from typing import List, TypedDict, Annotated
 from operator import add
+from pydantic import BaseModel, Field
 
 
 
 class FAInputState(TypedDict):
     """the input of the fa sub-graph"""
-    start_command: str
+    token_ids: List[str]
+
+
+
+class FAOutput(BaseModel):
+    """the output of the fa sub-graph"""
+    token_name: str = Field(description="The name of the token")
+    fundamental_analysis: str = Field(description="The fundamental analysis results")
+    evidence: List[str] = Field(description="The evidence supporting the analysis based on the fundamental data without duplicates")
 
 
 
 class FAOutputState(TypedDict):
-    """the output of the fa sub-graph"""
-    token_name: Annotated[List[str], add]
-    fundamental_analysis: Annotated[List[str], add]
-    evidence: Annotated[List[str | int], add]
+    """the output state of the fa sub-graph"""
+    final_fa_report: List[FAOutput]
 
 
 
-class FAOverallState(TypedDict):
+class FAOverallState(FAInputState, FAOutputState):
     """the overall state of the fa sub-graph"""
-    db_collection: Annotated[List[str], add]
-    documents: Annotated[List[dict], add]
-    token_name: Annotated[List[str], add]
-    fundamental_analysis: Annotated[List[str], add]
-    evidence: Annotated[List[str | int], add]
+    documents: List[dict]
