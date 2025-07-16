@@ -99,7 +99,6 @@ def fundamental_analysis_node(state: FAOverallState):
         
         logger.info(f"Invoking LLM for fundamental analysis of token {i+1}")
         result = structured_llm.invoke([SystemMessage(content=system_prompt)]+[HumanMessage(content=user_prompt)])
-        print(result)
         fa_analysis_list.append(result)
     logger.info(f"All fundamental analyses completed. Generated {len(fa_analysis_list)} analysis reports")
     logger.info(f"fundamental_analysis_node execution completed successfully")
