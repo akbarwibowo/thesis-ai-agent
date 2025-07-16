@@ -430,7 +430,7 @@ def scrape_crypto_tweets(
             "gamefi", 
             "'institutional adoption' AND 'cryptocurrency'"
             ], 
-        max_tweets: int=1500, since_date: str="2025-01-01") -> list[dict[str, str]]:
+        max_tweets: int=100, since_date: str="2025-01-01") -> list[dict[str, str]]:
     """Scrape tweets related to cryptocurrency topics.
 
     Args:

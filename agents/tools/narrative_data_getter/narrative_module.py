@@ -45,7 +45,7 @@ def _cleanup_asyncio():
 atexit.register(_cleanup_asyncio)
 
 
-
+# TODO add condition to handle if the max scrapper is 0
 async def _parallel_runner(
     twitter_scrape_keywords: list[str] = [], 
     twitter_scrape_max_tweets: int = 500,
@@ -54,18 +54,30 @@ async def _parallel_runner(
     """Run scraping tasks in parallel."""
     logger.info("Starting parallel scraping tasks...")
     try:
-        results = await asyncio.gather(
-            asyncio.to_thread(get_coindesk),
-            asyncio.to_thread(get_crypto_panic),
-            asyncio.to_thread(scrape_cointelegraph_news, max_articles=cointelegraph_max_articles),
-            asyncio.to_thread(scrape_crypto_tweets, max_tweets=twitter_scrape_max_tweets, queries=twitter_scrape_keywords) if twitter_scrape_keywords else asyncio.to_thread(scrape_crypto_tweets, max_tweets=twitter_scrape_max_tweets)
-        )
-        narrative_data = []
-        for result in results:
-            if result:
-                narrative_data.extend(result)
+        if (twitter_scrape_max_tweets and cointelegraph_max_articles) > 0:
+            results = await asyncio.gather(
+                asyncio.to_thread(get_coindesk),
+                asyncio.to_thread(get_crypto_panic),
+                asyncio.to_thread(scrape_cointelegraph_news, max_articles=cointelegraph_max_articles),
+                asyncio.to_thread(scrape_crypto_tweets, max_tweets=twitter_scrape_max_tweets, queries=twitter_scrape_keywords) if twitter_scrape_keywords else asyncio.to_thread(scrape_crypto_tweets, max_tweets=twitter_scrape_max_tweets)
+            )
+            narrative_data = []
+            for result in results:
+                if result:
+                    narrative_data.extend(result)
 
-        return narrative_data
+            return narrative_data
+        else:
+            results = await asyncio.gather(
+                asyncio.to_thread(get_coindesk),
+                asyncio.to_thread(get_crypto_panic)
+            )
+            narrative_data = []
+            for result in results:
+                if result:
+                    narrative_data.extend(result)
+
+            return narrative_data
     except Exception as e:
         logger.error(f"Error in parallel scraping tasks: {e}")
         return []
