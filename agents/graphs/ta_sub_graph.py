@@ -161,21 +161,3 @@ def ta_graph():
     logger.info("TA graph compiled successfully")
 
     return ta_graph
-
-
-if __name__ == "__main__":
-    logger.info("=== Starting Technical Analysis Sub-Graph Execution ===")
-    
-    graph = ta_graph()
-    
-    input_tokens = ["bitcoin", "ethereum"]
-    logger.info(f"Starting graph execution with tokens: {input_tokens}")
-    
-    result = graph.invoke({"token_ids": input_tokens})
-    
-    logger.info("Final result keys: %s", list(result.keys()) if isinstance(result, dict) else "Non-dict result")
-    
-    print(result)
-    
-    logger.info("=== Technical Analysis Sub-Graph Execution Complete ===")
-    logger.info("Check the output above for the technical analysis reports")
