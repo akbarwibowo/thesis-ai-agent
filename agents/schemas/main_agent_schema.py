@@ -14,3 +14,4 @@ class MainState(TypedDict):
     final_na_report: str
     final_ta_report: TAOutputState
     final_fa_report: FAOutputState
+    final_analysis_report: str
