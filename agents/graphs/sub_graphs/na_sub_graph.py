@@ -186,7 +186,7 @@ def narrative_analysis_node(state: NAOverallState) -> NAOutputState:
 
     If a narrative is identified: Structure your output with a main title for the narrative, followed by your detailed analysis with citations.
 
-    If no significant narrative is identified: Your output should be a single line: No significant emerging narrative was identified from the provided data.
+    If no significant narrative is identified: Your output should be a single line: "No significant emerging narrative was identified from the provided data."
 
     Example of a good analysis output (if a narrative is found):
 
