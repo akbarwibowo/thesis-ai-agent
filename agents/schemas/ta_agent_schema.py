@@ -10,10 +10,29 @@ class TAInputState(TypedDict):
 
 
 class TAOutput(BaseModel):
-    """the output of the ta sub-graph"""
-    token_name: str = Field(description="The name of the token")
-    technical_analysis: str = Field(description="The technical analysis results")
-    evidence: List[str] = Field(description="The evidence supporting the analysis based on the technical data without duplicates")
+    """
+    A structured output schema for the Technical Analysis Agent.
+    Each field corresponds to a specific section of the analysis requested in the prompt.
+    """
+    token_name: str = Field(
+        description="The name or symbol of the token being analyzed."
+    )
+    
+    trend_analysis: str = Field(
+        description="The analysis of the overall trend, based on the price's relationship with its moving averages (SMA and EMA)."
+    )
+    
+    momentum_analysis: str = Field(
+        description="The analysis of market momentum, based on the interpretation of the RSI (Relative Strength Index) values."
+    )
+    
+    volume_analysis: str = Field(
+        description="The analysis of trading volume and how it confirms or contradicts the recent price action."
+    )
+    
+    synthesis_and_outlook: str = Field(
+        description="A concluding summary that synthesizes all the above points into a final technical outlook for the token."
+    )
 
 
 
@@ -25,4 +44,4 @@ class TAOutputState(TypedDict):
 
 class TAOverallState(TAInputState, TAOutputState):
     """the overall state of the ta sub-graph"""
-    documents: List[dict]
+    price_data: List[dict]
