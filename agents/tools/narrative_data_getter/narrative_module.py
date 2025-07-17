@@ -45,7 +45,6 @@ def _cleanup_asyncio():
 atexit.register(_cleanup_asyncio)
 
 
-# TODO add condition to handle if the max scrapper is 0
 async def _parallel_runner(
     twitter_scrape_keywords: list[str] = [], 
     twitter_scrape_max_tweets: int = 500,

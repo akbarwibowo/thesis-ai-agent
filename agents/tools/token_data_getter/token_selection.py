@@ -155,8 +155,12 @@ def categories_selector(categories: list[str], similarity_threshold=0.2) -> list
         similarity_threshold (float): Minimum similarity threshold for matching. Defaults to 0.2.
         
     Returns:
-        list[dict]: List of selected category dictionaries that match the input categories.
-                   Each dictionary contains 'id', 'name', and 'tokens' keys.
+        list[dict]: List of selected category dictionaries that match the input categories with format:
+            {
+                "id": "category_id",
+                "name": "category_name",
+                "tokens": ["token_id_1", "token_id_2", "token_id_3"]
+            }
     """
     logger.info(f"Selecting categories similar to: {categories}")
     
