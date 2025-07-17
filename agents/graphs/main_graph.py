@@ -26,9 +26,6 @@ from agents.schemas.na_agent_schema import NAOutputState
 from agents.llm_model import llm_model
 from langgraph.graph import START, END, StateGraph
 from langchain_core.messages import SystemMessage, HumanMessage
-from langgraph.graph import START, END, StateGraph
-from langgraph.types import Send
-from langchain_core.messages import SystemMessage, HumanMessage
 from agents.tools.databases.mongodb import retrieve_documents
 from agents.tools.narrative_data_getter.narrative_module import collection_name
 from agents.tools.token_data_getter.token_selection import categories_selector
@@ -38,27 +35,42 @@ from agents.tools.token_data_getter.tokens_identity import get_token_identity
 
 def start_graph(state: MainState):
     """Start node for the main graph"""
+    logger.info("Starting main graph execution")
 
     start_command = state["start_command"]
+    logger.info(f"Received start command: {start_command}")
+    
     if start_command != "START":
         logger.error(f"Invalid start command: {start_command}. Expected 'START'.")
         raise ValueError("Invalid start command. Expected 'START'.")
 
+    logger.info("Retrieving existing narrative data from database")
     narrative_data = retrieve_documents(collection_name=collection_name)
+    
+    existing_count = len(narrative_data) if isinstance(narrative_data, list) else 0
+    logger.info(f"Found {existing_count} existing narrative documents in database")
 
     if not isinstance(narrative_data, list) or not narrative_data:
         # empty database
         max_twitter_scrape = 500
         max_cointelegraph_scrape = 500
+        logger.info("Database is empty - setting maximum scraping limits")
     elif len(narrative_data) < 500:
         max_twitter_scrape = 250
         max_cointelegraph_scrape = 250
+        logger.info(f"Database has {len(narrative_data)} documents - setting moderate scraping limits")
     elif len(narrative_data) < 1000:
         max_twitter_scrape = 1000 - len(narrative_data)
         max_cointelegraph_scrape = 1000 - len(narrative_data)
+        logger.info(f"Database has {len(narrative_data)} documents - setting reduced scraping limits")
     else:
         max_twitter_scrape = 0
         max_cointelegraph_scrape = 0
+        logger.info(f"Database has {len(narrative_data)} documents - skipping scraping")
+    
+    logger.info(f"Scraping configuration - Twitter: {max_twitter_scrape}, CoinTelegraph: {max_cointelegraph_scrape}")
+    
+    logger.info(f"start_graph execution completed.")
     
     return {
         "cointelegraph_max_articles": max_cointelegraph_scrape,
@@ -68,7 +80,10 @@ def start_graph(state: MainState):
 
 def narrative_identifier(state: NAOutputState):
     """Node to identify the narrative based on the report"""
+    logger.info("Starting narrative_identifier execution")
+    
     narrative_report = state["final_na_report"]
+    logger.info(f"Processing narrative report of length: {len(str(narrative_report))} characters")
 
     structured_llm = llm_model.with_structured_output(NAIdentifierOutput)
     system_prompt = """
@@ -91,9 +106,14 @@ def narrative_identifier(state: NAOutputState):
     </narrative_analysis_report>
     """
 
+    logger.info("Invoking LLM for narrative identification")
     result = structured_llm.invoke([SystemMessage(content=system_prompt)] + [HumanMessage(content=user_prompt)])
     narrative_list = result.narratives if hasattr(result, 'narratives') else [] # type: ignore
+    
+    logger.info(f"Identified narratives: {narrative_list}")
+    
     if not narrative_list and not isinstance(narrative_list, list):
+        logger.info("No narratives identified - generating explanatory report")
         system_prompt = """
         You are an expert financial markets communicator. Your primary skill is taking complex, data-heavy analysis and translating it into a clear, concise, and easy-to-understand summary for a general audience. You excel at explaining why a conclusion was reached, focusing on the underlying market dynamics.
         """
@@ -110,18 +130,44 @@ def narrative_identifier(state: NAOutputState):
         {narrative_report}
         </narrative_analysis_report>
         """
+        logger.info("Invoking LLM for no-narrative explanation")
         result = llm_model.invoke([SystemMessage(content=system_prompt)] + [HumanMessage(content=user_prompt)])
         final_report = "# NO NARRATIVE IDENTIFIED\n" + str(result.content if hasattr(result, 'content') else "No narrative identified and no explanation provided.")
+
+        logger.info(f"narrative_identifier completed (no narratives)")
         return {"final_analysis_report": final_report}
     
+    logger.info("Selecting token categories based on identified narratives")
     categories = categories_selector(narrative_list)
+    
     if not categories:
+        logger.warning("No categories found for identified narratives")
+        logger.info(f"narrative_identifier completed (no categories)")
         return {"final_analysis_report": "No Categories Found."}
 
+    logger.info(f"Found {len(categories)} categories for analysis")
+    
     token_ids = []
-    for category in categories:
+    for i, category in enumerate(categories):
+        token_count = len(category.get("tokens", []))
+        logger.info(f"Category {i+1}: {category.get('name', 'Unknown')} - {token_count} tokens")
         token_ids.extend(category.get("tokens", []))
-        category["token_names"] = [get_token_identity(token_id)["name"] for token_id in category["tokens"] if get_token_identity(token_id)]
+        
+        # Resolve token names
+        resolved_names = []
+        for token_id in category["tokens"]:
+            identity = get_token_identity(token_id)
+            if identity:
+                resolved_names.append(identity["name"])
+            else:
+                logger.warning(f"Could not resolve identity for token_id: {token_id}")
+        
+        category["token_names"] = resolved_names
+        logger.info(f"Resolved {len(resolved_names)} token names for category: {category.get('name', 'Unknown')}")
+
+    logger.info(f"Total tokens to analyze: {len(token_ids)}")
+
+    logger.info(f"narrative_identifier execution completed.")
 
     return {
         "identified_narratives": narrative_list,
@@ -132,22 +178,32 @@ def narrative_identifier(state: NAOutputState):
 
 def should_continue(state: MainState) -> Sequence[str]:
     """Node to check if there is narrative identified."""
+    logger.info("Evaluating whether to continue with detailed analysis")
+    
     final_analysis_report = state["final_analysis_report"]
-
+    
     if "NO NARRATIVE IDENTIFIED" in final_analysis_report or "No Categories Found" in final_analysis_report:
+        logger.info("No narrative identified - terminating analysis pipeline")
         return END
 
+    logger.info("Narratives identified - proceeding with fundamental and technical analysis")
     return ["fa_node", "ta_node"]
 
 
 def final_report(state: MainState):
     """Node to generate the final report based on the combined analysis reports"""
+    logger.info("Starting final_report generation")
 
     narrative_report = state["final_na_report"]
     identified_narratives = state["identified_narratives"]
     fa_reports = state["final_fa_report"]
     ta_reports = state["final_ta_report"]
     categories_with_tokens = state["categories_with_tokens"]
+
+    logger.info(f"Compiling final report with {len(identified_narratives)} narratives")
+    logger.info(f"Including {len(fa_reports)} fundamental analysis reports")
+    logger.info(f"Including {len(ta_reports)} technical analysis reports")
+    logger.info(f"Processing {len(categories_with_tokens)} token categories")
 
     final_analysis_report = f"""
     {narrative_report}
@@ -157,35 +213,58 @@ def final_report(state: MainState):
     # Tokens of Identified Narratives\n
     """
 
-    for category in categories_with_tokens:
-        final_analysis_report += f"## {str(category['name']).capitalize()}\n"
+    for i, category in enumerate(categories_with_tokens):
+        category_name = str(category['name']).capitalize()
+        token_count = len(category["token_names"])
+        logger.info(f"Adding category {i+1}: {category_name} with {token_count} tokens")
+        
+        final_analysis_report += f"## {category_name}\n"
         for token in category["token_names"]:
             final_analysis_report += f"- {token}\n"
     
+    logger.info("Adding fundamental analysis reports to final report")
     final_analysis_report += "\n# Fundamental Analysis Reports\n"
-    for fa_report in fa_reports:
-        final_analysis_report += f"## {str(fa_report.token_name).capitalize()}\n"
+    for i, fa_report in enumerate(fa_reports):
+        token_name = str(fa_report.token_name).capitalize()
+        proof_count = len(fa_report.proof)
+        logger.info(f"Adding FA report {i+1}: {token_name} with {proof_count} proof points")
+        
+        final_analysis_report += f"## {token_name}\n"
         final_analysis_report += f"### Fundamental Analysis\n{fa_report.fundamental_analysis}\n"
         final_analysis_report += f"### Proof\n"
         for proof in fa_report.proof:
             final_analysis_report += f"- {proof}\n"
 
+    logger.info("Adding technical analysis reports to final report")
     final_analysis_report += "\n# Technical Analysis Reports\n"
-    for ta_report in ta_reports:
-        final_analysis_report += f"## {str(ta_report.token_name).capitalize()}\n"
+    for i, ta_report in enumerate(ta_reports):
+        token_name = str(ta_report.token_name).capitalize()
+        logger.info(f"Adding TA report {i+1}: {token_name}")
+        
+        final_analysis_report += f"## {token_name}\n"
         final_analysis_report += f"### Trend Analysis\n{ta_report.trend_analysis}\n"
         final_analysis_report += f"### Momentum Analysis\n{ta_report.momentum_analysis}\n"
         final_analysis_report += f"### Volume Analysis\n{ta_report.volume_analysis}\n"
         final_analysis_report += f"### Outlook\n{ta_report.synthesis_and_outlook}\n"
 
+    report_length = len(final_analysis_report)
+    logger.info(f"Final report generated successfully.")
+    logger.info(f"Final report length: {report_length} characters")
+    
     return {"final_analysis_report": final_analysis_report}
 
 
 def main_graph():
     """AI Analyst Main Graph"""
+    logger.info("Setting up Main AI Analyst Graph")
+    
+    logger.info("Initializing sub-graphs")
     na_node = na_graph()
     fa_node = fa_graph()
     ta_node = ta_graph()
+    logger.info("Sub-graphs initialized successfully")
+    
+    logger.info("Configuring main graph structure")
     graph = StateGraph(MainState)
     graph.add_node("start", start_graph)
     graph.add_node("na_node", na_node)
@@ -194,6 +273,7 @@ def main_graph():
     graph.add_node("ta_node", ta_node)
     graph.add_node("final_report", final_report)
 
+    logger.info("Adding graph edges")
     graph.add_edge(START, "start")
     graph.add_edge("start", "na_node")
     graph.add_edge("na_node", "narrative_identifier")
@@ -201,14 +281,42 @@ def main_graph():
     graph.add_edge(["ta_node", "fa_node"], "final_report")
     graph.add_edge("final_report", END)
 
+    logger.info("Compiling main graph")
     ai_agent = graph.compile()
+
+    logger.info(f"Main graph setup completed.")
 
     return ai_agent
 
 
-if __name__ == "__main__":
-    ai_agent = main_graph()
-    # ai_agent.invoke({"start_command": "START"})
-    graph_png = ai_agent.get_graph().draw_mermaid_png()
-    with open("graph.png", "wb") as f:
-        f.write(graph_png)
+# Example usage (uncomment and run to test):
+# if __name__ == "__main__":
+#     logger.info("=== Starting Main AI Analyst Graph Execution ===")
+#     total_start_time = time.time()
+#     
+#     try:
+#         logger.info("Creating main graph instance")
+#         graph = main_graph()
+#         
+#         logger.info("Starting analysis with START command")
+#         result = graph.invoke({"start_command": "START"})  # type: ignore
+#         
+#         total_execution_time = time.time() - total_start_time
+#         logger.info(f"Main graph execution completed successfully in {total_execution_time:.2f} seconds")
+#         logger.info("Final result keys: %s", list(result.keys()) if isinstance(result, dict) else "Non-dict result")
+#         
+#         # Log final report length if available
+#         if isinstance(result, dict) and "final_analysis_report" in result:
+#             report_length = len(str(result["final_analysis_report"]))
+#             logger.info(f"Final analysis report generated: {report_length} characters")
+#         
+#         print("\n" + "="*80)
+#         print("FINAL ANALYSIS REPORT")
+#         print("="*80)
+#         print(result)
+#         
+#     except Exception as e:
+#         logger.error(f"Error during main graph execution: {e}")
+#         raise
+#     
+#     logger.info("=== Main AI Analyst Graph Execution Complete ===")
