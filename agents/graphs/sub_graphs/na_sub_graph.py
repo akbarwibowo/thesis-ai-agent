@@ -204,7 +204,7 @@ def narrative_analysis_node(state: NAOverallState) -> NAOutputState:
     result_str = result.narrative_analysis # type: ignore
     result_evidence_str = str(result.evidence) # type: ignore
     final_report_structure = f"""
-    # NARRATIVE REPORT
+    # NARRATIVE ANALYSIS REPORT
     {result_str}
     ## NARRATIVE REPORT PROOF ID
     {result_evidence_str}
