@@ -16,6 +16,7 @@ class MainState(TypedDict):
     final_ta_report: List[TAOutput] # populated by the TA graph
     final_fa_report: List[FAOutput] # populated by the FA graph
     final_analysis_report: str
+    categories_with_tokens: List[dict]  # List of categories with their tokens and names
 
 
 
