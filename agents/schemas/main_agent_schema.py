@@ -1,7 +1,14 @@
+import sys
+import os
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.join(current_dir, '..', '..')
+sys.path.insert(0, project_root)
+
 from typing import List, TypedDict
 from pydantic import BaseModel, Field
-from ta_agent_schema import TAOutput
-from fa_agent_schema import FAOutput
+from agents.schemas.ta_agent_schema import TAOutput
+from agents.schemas.fa_agent_schema import FAOutput
 
 
 
