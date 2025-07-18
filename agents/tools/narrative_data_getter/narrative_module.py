@@ -146,6 +146,8 @@ def save_narrative_data_to_db(narrative_data: list[dict[str, str]]) -> bool:
                     logger.info(f"Removing old document from {collection_name}: {doc}")
                     # Remove old document
                     delete_document(collection_name=collection_name, filter=doc)
+                if doc in narrative_data:
+                    narrative_data.remove(doc)
         insert_documents(collection_name, narrative_data)
         logger.info(f"Successfully saved narrative data to {collection_name}.")
         return True
