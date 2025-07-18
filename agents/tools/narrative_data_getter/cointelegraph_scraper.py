@@ -123,6 +123,154 @@ def _gradual_scroll(driver, scroll_pause_time=2.0):
     return new_height != last_height
 
 
+def _smart_scroll_and_wait(driver, retry_count=0, max_retries=3):
+    """Smart scrolling that handles content loading issues.
+    
+    Args:
+        driver (webdriver.Chrome): The Chrome WebDriver instance.
+        retry_count (int): Current retry attempt.
+        max_retries (int): Maximum number of retries.
+        
+    Returns:
+        bool: True if scrolling was successful, False if max retries reached.
+    """
+    try:
+        # Check current scroll position
+        current_scroll = driver.execute_script("return window.pageYOffset")
+        
+        # If we're not at the top and this is a retry, scroll up first
+        if retry_count > 0 and current_scroll > 100:
+            logger.info(f"Retry {retry_count}: Scrolling up to reload content")
+            driver.execute_script("window.scrollTo(0, Math.max(0, window.pageYOffset - 800));")
+            time.sleep(random.uniform(2, 4))
+            
+            # Wait for content to potentially reload
+            _random_delay(3, 5)
+        
+        # Gradual scroll down
+        success = _gradual_scroll(driver, scroll_pause_time=3.0)
+        
+        # Additional wait for content loading
+        _random_delay(2, 4)
+        
+        return True
+        
+    except Exception as e:
+        logger.warning(f"Error during smart scroll (attempt {retry_count + 1}): {e}")
+        if retry_count < max_retries:
+            return _smart_scroll_and_wait(driver, retry_count + 1, max_retries)
+        return False
+
+
+def _find_article_links_with_retry(driver, existing_links, max_retries=3):
+    """Find article links with retry mechanism for content loading issues.
+    
+    Args:
+        driver (webdriver.Chrome): The Chrome WebDriver instance.
+        existing_links (list): List of already found article links.
+        max_retries (int): Maximum number of retries.
+        
+    Returns:
+        list: New article links found.
+    """
+    new_links = []
+    
+    for retry in range(max_retries + 1):
+        try:
+            logger.debug(f"Searching for article links (attempt {retry + 1})")
+            
+            # Find article elements
+            elements = driver.find_elements(By.CSS_SELECTOR, 'a[href*="/news/"]')
+            logger.debug(f"Found {len(elements)} potential article elements")
+            
+            initial_count = len(new_links)
+            
+            for element in elements:
+                try:
+                    href = element.get_attribute('href')
+                    if not href or '/news/' not in href:
+                        continue
+                        
+                    # Check if we already have this link
+                    existing_urls = [link['url'] for link in existing_links + new_links]
+                    if href in existing_urls:
+                        continue
+                    
+                    # Try to get title from various sources
+                    title_text = None
+                    
+                    # Method 1: Direct text content
+                    if element.text and element.text.strip():
+                        title_text = element.text.strip()
+                    
+                    # Method 2: Find child text elements
+                    if not title_text:
+                        try:
+                            text_elements = element.find_elements(By.XPATH, './/*[text()]')
+                            for text_elem in text_elements:
+                                text_content = text_elem.get_attribute('textContent')
+                                if text_content and text_content.strip() and len(text_content.strip()) > 10:
+                                    title_text = text_content.strip()
+                                    break
+                        except:
+                            pass
+                    
+                    # Method 3: Try title attribute
+                    if not title_text:
+                        title_text = element.get_attribute('title')
+                    
+                    # Method 4: Try aria-label
+                    if not title_text:
+                        title_text = element.get_attribute('aria-label')
+                    
+                    if title_text and len(title_text.strip()) > 10:
+                        new_links.append({
+                            'url': href,
+                            'title': title_text.strip()
+                        })
+                        
+                except Exception as e:
+                    logger.debug(f"Error processing individual element: {e}")
+                    continue
+            
+            new_count = len(new_links) - initial_count
+            logger.debug(f"Found {new_count} new article links in attempt {retry + 1}")
+            
+            # If we found new links, break out of retry loop
+            if new_count > 0:
+                break
+                
+            # If no new links found and we have retries left, try scrolling strategy
+            if retry < max_retries:
+                logger.info(f"No new links found on attempt {retry + 1}, trying scroll strategy")
+                
+                # Scroll up to potentially reload content
+                current_scroll = driver.execute_script("return window.pageYOffset")
+                if current_scroll > 100:
+                    scroll_up_amount = min(800, current_scroll // 2)
+                    driver.execute_script(f"window.scrollBy(0, -{scroll_up_amount});")
+                    logger.debug(f"Scrolled up by {scroll_up_amount}px")
+                    time.sleep(random.uniform(2, 3))
+                
+                # Wait for content to load
+                _random_delay(3, 5)
+                
+                # Try a small scroll down to trigger content loading
+                driver.execute_script("window.scrollBy(0, 200);")
+                time.sleep(random.uniform(1, 2))
+                
+        except Exception as e:
+            logger.warning(f"Error in link finding attempt {retry + 1}: {e}")
+            if retry < max_retries:
+                _random_delay(2, 4)
+                continue
+            else:
+                break
+    
+    logger.info(f"Total new links found: {len(new_links)}")
+    return new_links
+
+
 def _parse_cointelegraph_date(date_str):
     """Parse Cointelegraph date format to YYYY-MM-DD format.
 
@@ -254,35 +402,46 @@ def scrape_cointelegraph_news(max_articles=50):
         
         articles_data = []
         page = 0
+        no_new_links_count = 0  # Track consecutive failures to find new links
+        max_no_new_links = 3    # Max consecutive failures before giving up
 
         WebDriverWait(driver, 15)
         
         # Try different selectors for article links       
         article_links = []
-        while len(article_links) < max_articles:
-            try:
-                elements = driver.find_elements(By.CSS_SELECTOR, 'a[href*="/news/"]')
-                for element in elements:
-                    href = element.get_attribute('href')
-                    if href and '/news/' in href and href not in [link['url'] for link in article_links]:
-                            title_element = element.find_element(By.XPATH, './/*[text()]') if element.text else element
-                            title_text = title_element.get_attribute('textContent') if title_element else None
-                            if not title_text:
-                                title_text = element.get_attribute('title') or element.text or ""
-                            title = title_text.strip() if title_text else ""
-                            if title and len(title) > 10:  # Valid title
-                                article_links.append({
-                                    'url': href,
-                                    'title': title
-                                })
-            except:
-                logger.warning("Error finding article links, scrolling...")
-                time.sleep(random.uniform(0.5, 1.0))
-                pass
-            _gradual_scroll(driver, scroll_pause_time=3.0)
-            WebDriverWait(driver, 15)
+        while len(article_links) < max_articles and no_new_links_count < max_no_new_links:
+            logger.info(f"Searching for article links on page {page + 1} (found {len(article_links)} so far)")
+            
+            # Use the new smart link finding function
+            new_links = _find_article_links_with_retry(driver, article_links)
+            
+            if new_links:
+                article_links.extend(new_links)
+                no_new_links_count = 0  # Reset counter since we found new links
+                logger.info(f"Found {len(new_links)} new links. Total: {len(article_links)}")
+            else:
+                no_new_links_count += 1
+                logger.warning(f"No new links found (attempt {no_new_links_count}/{max_no_new_links})")
+                
+                if no_new_links_count < max_no_new_links:
+                    # Try smart scrolling strategy
+                    scroll_success = _smart_scroll_and_wait(driver, retry_count=no_new_links_count - 1)
+                    if not scroll_success:
+                        logger.warning("Smart scrolling failed, trying one more time with basic scroll")
+                        _gradual_scroll(driver, scroll_pause_time=4.0)
+                    
+                    # Wait a bit longer between failed attempts
+                    _random_delay(4, 7)
+                else:
+                    logger.info("Max consecutive failures reached, stopping link search")
+                    break
+            
+            # If we found new links, continue with normal scrolling
+            if new_links and len(article_links) < max_articles:
+                scroll_success = _smart_scroll_and_wait(driver)
+                WebDriverWait(driver, 10)
+            
             page += 1
-            logger.info(f"Found {len(article_links)} article links on page {page}")
         
         # Process articles from gathered links
         for article_link in article_links:
