@@ -113,7 +113,8 @@ def _gradual_scroll(driver, scroll_pause_time=2.0):
     
     # Scroll in increments
     for i in range(3):
-        driver.execute_script(f"window.scrollBy(0, {random.randint(300, 800)});")
+        scroll_down_length = 800
+        driver.execute_script(f"window.scrollBy(0, {scroll_down_length});")
         time.sleep(random.uniform(0.5, 1.5))
     
     # Wait for new content to load
@@ -138,22 +139,13 @@ def _smart_scroll_and_wait(driver, retry_count=0, max_retries=3):
         # Check current scroll position
         current_scroll = driver.execute_script("return window.pageYOffset")
         
-        # If we're not at the top and this is a retry, scroll up first
-        if retry_count > 0 and current_scroll > 100:
-            logger.info(f"Retry {retry_count}: Scrolling up to reload content")
-            driver.execute_script("window.scrollTo(0, Math.max(0, window.pageYOffset - 800));")
-            time.sleep(random.uniform(2, 4))
-            
-            # Wait for content to potentially reload
-            _random_delay(3, 5)
-        
         # Gradual scroll down
         success = _gradual_scroll(driver, scroll_pause_time=3.0)
         
         # Additional wait for content loading
         _random_delay(2, 4)
         
-        return True
+        return success
         
     except Exception as e:
         logger.warning(f"Error during smart scroll (attempt {retry_count + 1}): {e}")
@@ -247,7 +239,7 @@ def _find_article_links_with_retry(driver, existing_links, max_retries=3):
                 # Scroll up to potentially reload content
                 current_scroll = driver.execute_script("return window.pageYOffset")
                 if current_scroll > 100:
-                    scroll_up_amount = min(800, current_scroll // 2)
+                    scroll_up_amount = min(300, current_scroll // 2)
                     driver.execute_script(f"window.scrollBy(0, -{scroll_up_amount});")
                     logger.debug(f"Scrolled up by {scroll_up_amount}px")
                     time.sleep(random.uniform(2, 3))
@@ -455,7 +447,7 @@ def scrape_cointelegraph_news(max_articles=50):
                 if not article_url.startswith('http'):
                     article_url = f"https://cointelegraph.com{article_url}"
                 
-                logger.info(f"Scraping article: {title[:50]}...")
+                logger.info(f"Scraping article: {title[:50]}.... Article URL: {article_url}")
                 
                 # Get article content
                 description = _scrape_article_content(driver, article_url)
@@ -531,3 +523,11 @@ def scrape_cointelegraph_news(max_articles=50):
         if driver:
             driver.quit()
             logger.info("Chrome driver closed")
+
+
+if __name__ == "__main__":
+    # Example usage
+    articles = scrape_cointelegraph_news(max_articles=100)
+    for article in articles:
+        print(f"Title: {article['title']}\nDescription: {article['description']}\nSource: {article['source']}\nPublished At: {article['published_at']}\n")
+        print("="*80)
