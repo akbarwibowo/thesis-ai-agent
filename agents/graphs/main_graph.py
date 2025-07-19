@@ -28,7 +28,7 @@ from langgraph.graph import START, END, StateGraph
 from langchain_core.messages import SystemMessage, HumanMessage
 from agents.tools.databases.mongodb import retrieve_documents
 from agents.tools.narrative_data_getter.narrative_module import collection_name
-from agents.tools.token_data_getter.token_selection import categories_selector
+from agents.tools.token_data_getter.token_selection import categories_selector, _get_categories_with_tokens
 from agents.tools.token_data_getter.tokens_identity import get_token_identity
 
 
@@ -85,16 +85,39 @@ def narrative_identifier(state: NAOutputState):
     narrative_report = state["final_na_report"]
     logger.info(f"Processing narrative report of length: {len(str(narrative_report))} characters")
 
+    available_categories = _get_categories_with_tokens()
+    categories_name = [cat["name"] for cat in available_categories]
+
     structured_llm = llm_model.with_structured_output(NAIdentifierOutput)
     system_prompt = """
     You are a highly specialized data extraction AI. Your sole function is to read a given block of text and identify the primary cryptocurrency market narrative categories mentioned within it. You are precise and your output is always in a structured format. Do not add any explanation or conversational text.
     """
+    # USER PROMPT 1
+    # user_prompt = f"""
+    # Your task is to read the following analysis report and identify the main cryptocurrency narrative categories discussed. The narratives are usually sectors or themes like "Real World Assets (RWA)", "DeFi", "AI & DePIN", "GameFi", "Layer 2 Scaling", "Stablecoins", etc.
+    # Your output MUST be a valid list of strings.
+    # If you identify one or more narratives, list their names in the list.
+    # If the report does not mention any clear narrative, return an empty list [].
+    # Example 1:
+    # Input Report: "...the analysis shows a strong trend in AI and Decentralized Compute..."
+    # Your Output: ["AI", "Decentralized Compute"]
+    # Example 2:
+    # Input Report: "...the market is showing general sideways movement without a clear focus..."
+    # Your Output: []
+    # Analysis Report to Process:
+    # <narrative_analysis_report>
+    # {narrative_report}
+    # </narrative_analysis_report>
+    # """
+
+    # USER PROMPT 2
     user_prompt = f"""
-    Your task is to read the following analysis report and identify the main cryptocurrency narrative categories discussed. The narratives are usually sectors or themes like "Real World Assets (RWA)", "DeFi", "AI & DePIN", "GameFi", "Layer 2 Scaling", "Stablecoins", etc.
+    Your task is to read the following analysis report and identify the main cryptocurrency narrative categories discussed.
+    The available categories are: {', '.join(categories_name)}.
     Your output MUST be a valid list of strings.
     If you identify one or more narratives, list their names in the list.
     If the report does not mention any clear narrative, return an empty list [].
-    Example 1:
+    # Example 1:
     Input Report: "...the analysis shows a strong trend in AI and Decentralized Compute..."
     Your Output: ["AI", "Decentralized Compute"]
     Example 2:
@@ -138,7 +161,7 @@ def narrative_identifier(state: NAOutputState):
         return {"final_analysis_report": final_report}
     
     logger.info("Selecting token categories based on identified narratives")
-    categories = categories_selector(narrative_list)
+    categories = categories_selector(narrative_list, available_categories=available_categories)
     
     if not categories:
         logger.warning("No categories found for identified narratives")
@@ -173,6 +196,7 @@ def narrative_identifier(state: NAOutputState):
         "identified_narratives": narrative_list,
         "token_ids": token_ids,
         "categories_with_tokens": categories,
+        "final_analysis_report": "continue to final analysis"
     }
 
 
@@ -205,48 +229,48 @@ def final_report(state: MainState):
     logger.info(f"Including {len(ta_reports)} technical analysis reports")
     logger.info(f"Processing {len(categories_with_tokens)} token categories")
 
-    final_analysis_report = f"""
-    {narrative_report}
-    ## Identified Narratives
-    {identified_narratives}
+    final_analysis_report = f"""{narrative_report}
 
-    # Tokens of Identified Narratives\n
-    """
+        ## Identified Narratives
+        {identified_narratives}
+
+        # Tokens of Identified Narratives<br>
+        """
 
     for i, category in enumerate(categories_with_tokens):
         category_name = str(category['name']).capitalize()
         token_count = len(category["token_names"])
         logger.info(f"Adding category {i+1}: {category_name} with {token_count} tokens")
         
-        final_analysis_report += f"## {category_name}\n"
+        final_analysis_report += f"## {category_name}<br>"
         for token in category["token_names"]:
-            final_analysis_report += f"- {token}\n"
+            final_analysis_report += f"- {token}<br>"
     
     logger.info("Adding fundamental analysis reports to final report")
-    final_analysis_report += "\n# Fundamental Analysis Reports\n"
+    final_analysis_report += "<br># Fundamental Analysis Reports<br>"
     for i, fa_report in enumerate(fa_reports):
         token_name = str(fa_report.token_name).capitalize()
         proof_count = len(fa_report.proof)
         logger.info(f"Adding FA report {i+1}: {token_name} with {proof_count} proof points")
         
-        final_analysis_report += f"## {token_name}\n"
-        final_analysis_report += f"### Fundamental Analysis\n{fa_report.fundamental_analysis}\n"
-        final_analysis_report += f"### Proof\n"
+        final_analysis_report += f"## {token_name}<br>"
+        final_analysis_report += f"### Fundamental Analysis<br>{fa_report.fundamental_analysis}<br>"
+        final_analysis_report += f"### Proof<br>"
         for proof in fa_report.proof:
-            final_analysis_report += f"- {proof}\n"
+            final_analysis_report += f"- {proof}<br>"
 
     logger.info("Adding technical analysis reports to final report")
-    final_analysis_report += "\n# Technical Analysis Reports\n"
+    final_analysis_report += "<br># Technical Analysis Reports<br>"
     for i, ta_report in enumerate(ta_reports):
         token_name = str(ta_report.token_name).capitalize()
         logger.info(f"Adding TA report {i+1}: {token_name}")
         
-        final_analysis_report += f"## {token_name}\n"
-        final_analysis_report += f"### Trend Analysis\n{ta_report.trend_analysis}\n"
-        final_analysis_report += f"### Momentum Analysis\n{ta_report.momentum_analysis}\n"
-        final_analysis_report += f"### Volume Analysis\n{ta_report.volume_analysis}\n"
-        final_analysis_report += f"### Outlook\n{ta_report.synthesis_and_outlook}\n"
-
+        final_analysis_report += f"## {token_name}<br>"
+        final_analysis_report += f"### Trend Analysis<br>{ta_report.trend_analysis}<br>"
+        final_analysis_report += f"### Momentum Analysis<br>{ta_report.momentum_analysis}<br>"
+        final_analysis_report += f"### Volume Analysis<br>{ta_report.volume_analysis}<br>"
+        final_analysis_report += f"### Outlook<br>{ta_report.synthesis_and_outlook}<br>"
+    final_analysis_report = final_analysis_report.strip().replace('\n', '<br>')
     report_length = len(final_analysis_report)
     logger.info(f"Final report generated successfully.")
     logger.info(f"Final report length: {report_length} characters")
@@ -290,33 +314,31 @@ def main_graph():
 
 
 # Example usage (uncomment and run to test):
-# if __name__ == "__main__":
-#     logger.info("=== Starting Main AI Analyst Graph Execution ===")
-#     total_start_time = time.time()
-#     
-#     try:
-#         logger.info("Creating main graph instance")
-#         graph = main_graph()
-#         
-#         logger.info("Starting analysis with START command")
-#         result = graph.invoke({"start_command": "START"})  # type: ignore
-#         
-#         total_execution_time = time.time() - total_start_time
-#         logger.info(f"Main graph execution completed successfully in {total_execution_time:.2f} seconds")
-#         logger.info("Final result keys: %s", list(result.keys()) if isinstance(result, dict) else "Non-dict result")
-#         
-#         # Log final report length if available
-#         if isinstance(result, dict) and "final_analysis_report" in result:
-#             report_length = len(str(result["final_analysis_report"]))
-#             logger.info(f"Final analysis report generated: {report_length} characters")
-#         
-#         print("\n" + "="*80)
-#         print("FINAL ANALYSIS REPORT")
-#         print("="*80)
-#         print(result)
-#         
-#     except Exception as e:
-#         logger.error(f"Error during main graph execution: {e}")
-#         raise
-#     
-#     logger.info("=== Main AI Analyst Graph Execution Complete ===")
+if __name__ == "__main__":
+    logger.info("=== Starting Main AI Analyst Graph Execution ===")
+        
+    try:
+        logger.info("Creating main graph instance")
+        graph = main_graph()
+        
+        logger.info("Starting analysis with START command")
+        result = graph.invoke({"start_command": "START"})  # type: ignore
+
+        logger.info(f"Main graph execution completed successfully")
+        logger.info("Final result keys: %s", list(result.keys()) if isinstance(result, dict) else "Non-dict result")
+        
+        # Log final report length if available
+        if isinstance(result, dict) and "final_analysis_report" in result:
+            report_length = len(str(result["final_analysis_report"]))
+            logger.info(f"Final analysis report generated: {report_length} characters")
+        
+        print("\n" + "="*80)
+        print("FINAL ANALYSIS REPORT")
+        print("="*80)
+        print(result['final_analysis_report'])
+        
+    except Exception as e:
+        logger.error(f"Error during main graph execution: {e}")
+        raise
+    
+    logger.info("=== Main AI Analyst Graph Execution Complete ===")
