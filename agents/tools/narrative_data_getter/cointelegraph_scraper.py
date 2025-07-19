@@ -99,12 +99,13 @@ def _setup_chrome_driver():
         raise
 
 
-def _gradual_scroll(driver, scroll_pause_time=2.0):
+def _gradual_scroll(driver, scroll_pause_time=2.0, max_scroll=3):
     """Scroll the page gradually instead of jumping to bottom.
     
     Args:
         driver (webdriver.Chrome): The Chrome WebDriver instance.
         scroll_pause_time (float): Time to pause between scrolls. Defaults to 2.0.
+        max_scroll (int): Maximum number of scrolls to perform. Defaults to 3.
         
     Returns:
         bool: True if new content was loaded, False otherwise.
@@ -112,7 +113,7 @@ def _gradual_scroll(driver, scroll_pause_time=2.0):
     last_height = driver.execute_script("return window.pageYOffset + window.innerHeight")
     
     # Scroll in increments
-    for i in range(3):
+    for i in range(max_scroll):
         scroll_down_length = 800
         driver.execute_script(f"window.scrollBy(0, {scroll_down_length});")
         time.sleep(random.uniform(0.5, 1.5))
@@ -124,7 +125,7 @@ def _gradual_scroll(driver, scroll_pause_time=2.0):
     return new_height != last_height
 
 
-def _smart_scroll_and_wait(driver, retry_count=0, max_retries=3):
+def _smart_scroll_and_wait(driver, retry_count=0, max_retries=3, max_scroll=3):
     """Smart scrolling that handles content loading issues.
     
     Args:
@@ -140,7 +141,7 @@ def _smart_scroll_and_wait(driver, retry_count=0, max_retries=3):
         current_scroll = driver.execute_script("return window.pageYOffset")
         
         # Gradual scroll down
-        success = _gradual_scroll(driver, scroll_pause_time=3.0)
+        success = _gradual_scroll(driver, scroll_pause_time=3.0, max_scroll=max_scroll)
         
         # Additional wait for content loading
         _random_delay(2, 4)
@@ -190,15 +191,11 @@ def _find_article_links_with_retry(driver, existing_links, max_retries=3):
                     
                     # Try to get title from various sources
                     title_text = None
-                    
-                    # Method 1: Direct text content
-                    if element.text and element.text.strip():
-                        title_text = element.text.strip()
-                    
-                    # Method 2: Find child text elements
+
+                    # Method 1: Find child text elements
                     if not title_text:
                         try:
-                            text_elements = element.find_elements(By.XPATH, './/*[text()]')
+                            text_elements = element.find_elements(By.CSS_SELECTOR, "span.post-card-inline__title")
                             for text_elem in text_elements:
                                 text_content = text_elem.get_attribute('textContent')
                                 if text_content and text_content.strip() and len(text_content.strip()) > 10:
@@ -206,14 +203,10 @@ def _find_article_links_with_retry(driver, existing_links, max_retries=3):
                                     break
                         except:
                             pass
-                    
-                    # Method 3: Try title attribute
+
+                    # Method 2: Try title attribute
                     if not title_text:
                         title_text = element.get_attribute('title')
-                    
-                    # Method 4: Try aria-label
-                    if not title_text:
-                        title_text = element.get_attribute('aria-label')
                     
                     if title_text and len(title_text.strip()) > 10:
                         new_links.append({
@@ -389,6 +382,7 @@ def scrape_cointelegraph_news(max_articles=50):
         base_url = "https://cointelegraph.com/tags/altcoin"
         driver.get(base_url)
         logger.info(f"Navigating to Cointelegraph: {base_url}")
+        _smart_scroll_and_wait(driver=driver, max_scroll=1)
         
         _random_delay(3, 6)
         
@@ -489,7 +483,7 @@ def scrape_cointelegraph_news(max_articles=50):
                     "published_at": published_at,
                 }
                 
-                if article_obj not in articles_data:
+                if article_obj not in articles_data and description != "Content not available":
                     articles_data.append(article_obj)
                 logger.debug(f"Scraped article: {title[:50]}... ({len(articles_data)}/{max_articles})")
                 
@@ -523,11 +517,3 @@ def scrape_cointelegraph_news(max_articles=50):
         if driver:
             driver.quit()
             logger.info("Chrome driver closed")
-
-
-if __name__ == "__main__":
-    # Example usage
-    articles = scrape_cointelegraph_news(max_articles=100)
-    for article in articles:
-        print(f"Title: {article['title']}\nDescription: {article['description']}\nSource: {article['source']}\nPublished At: {article['published_at']}\n")
-        print("="*80)
