@@ -147,7 +147,7 @@ def _get_categories_with_tokens() -> list[dict]:
     return final_data
 
 
-def categories_selector(categories: list[str], similarity_threshold=0.2) -> list[dict]:
+def categories_selector(categories: list[str], similarity_threshold=0.2, available_categories = None) -> list[dict]:
     """Select categories based on similarity to input category names using cosine similarity.
     
     Args:
@@ -165,8 +165,8 @@ def categories_selector(categories: list[str], similarity_threshold=0.2) -> list
     logger.info(f"Selecting categories similar to: {categories}")
     
     # Get all available categories with tokens
-    available_categories = _get_categories_with_tokens()
-    
+    available_categories = _get_categories_with_tokens() if available_categories is None else available_categories
+
     if not available_categories:
         logger.error("No categories available from CoinGecko API")
         return []

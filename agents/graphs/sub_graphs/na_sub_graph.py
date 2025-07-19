@@ -31,15 +31,15 @@ def scraping_node(state: NAInputState):
     """Scrape narrative data from various sources and store it in the database."""
     logger.info("Starting scraping_node execution")
     
-    twitter_scrape_keywords = state['twitter_scrape_keywords']
+    # twitter_scrape_keywords = state['twitter_scrape_keywords']
     twitter_max_tweets = state['twitter_scrape_max_tweets']
     cointelegraph_max_articles = state['cointelegraph_max_articles']
 
-    logger.info(f"Scraping parameters - Twitter keywords: {twitter_scrape_keywords}, Max tweets: {twitter_max_tweets}, CoinTelegraph articles: {cointelegraph_max_articles}")
+    logger.info(f"Scraping parameters - Twitter keywords: Max tweets: {twitter_max_tweets}, CoinTelegraph articles: {cointelegraph_max_articles}")
 
     logger.info("Calling get_narrative_data to scrape sources")
     documents = get_narrative_data(
-        twitter_scrape_keywords=twitter_scrape_keywords,
+        # twitter_scrape_keywords=twitter_scrape_keywords,
         twitter_scrape_max_tweets=twitter_max_tweets,
         cointelegraph_max_articles=cointelegraph_max_articles
     )
@@ -63,7 +63,7 @@ def retrieve_node(state: NAOverallState):
     documents = retrieve_documents(db_collection)
     logger.info(f"Retrieved {len(documents)} documents from database")
     
-    chunk_length = 50
+    chunk_length = 20
     chunked_documents = []
     for i in range(0, len(documents), chunk_length):
         chunked_documents.append(documents[i:i + chunk_length])  # Chunking documents into groups of chunk_length
@@ -124,7 +124,8 @@ def map_reduces_node(state: NAOverallState):
         logger.info(f"Invoking LLM for chunk {i+1} with {len(doc)} documents")
         result = structured_llm.invoke([SystemMessage(content=system_prompt)]+[HumanMessage(content=user_prompt)])
         logger.info(f"Chunk {i+1} processed successfully")
-        reduced_documents.append(result)
+        if result:
+            reduced_documents.append(result)
 
     logger.info(f"Map-reduce completed. Generated {len(reduced_documents)} reduced document summaries")
     logger.info(f"example of the recuded documents: {reduced_documents[0]}")
