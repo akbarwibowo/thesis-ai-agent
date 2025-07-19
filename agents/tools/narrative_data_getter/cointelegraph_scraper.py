@@ -483,7 +483,7 @@ def scrape_cointelegraph_news(max_articles=50):
                     "published_at": published_at,
                 }
                 
-                if article_obj not in articles_data and description != "Content not available":
+                if article_obj not in articles_data:
                     articles_data.append(article_obj)
                 logger.debug(f"Scraped article: {title[:50]}... ({len(articles_data)}/{max_articles})")
                 
