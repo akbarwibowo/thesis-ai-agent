@@ -5,9 +5,14 @@ from pydantic import BaseModel, Field
 
 class NAInputState(TypedDict):
     """the input of the narrative sub-graph"""
-    twitter_scrape_keywords: List[str]
     twitter_scrape_max_tweets: int
     cointelegraph_max_articles: int
+
+
+
+class NATwitterKeywords(BaseModel):
+    """the Twitter keywords for scraping"""
+    twitter_scrape_keywords: List[str] = Field(default_factory=list, description="List of keywords to scrape Twitter for crypto narratives")
 
 
 
@@ -36,3 +41,4 @@ class NAOverallState(NAInputState, NAOutputState):
     db_collection: str
     chunked_documents: List[List[dict[str, str]]]
     reduced_documents: List[NAMapReducer]
+    twitter_scrape_keywords: List[str]

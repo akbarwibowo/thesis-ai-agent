@@ -20,18 +20,53 @@ logging.basicConfig(
 
 from agents.tools.narrative_data_getter.narrative_module import get_narrative_data, save_narrative_data_to_db, collection_name
 from agents.tools.databases.mongodb import retrieve_documents
-from agents.schemas.na_agent_schema import NAInputState, NAMapReducer, NAOutput, NAOverallState, NAOutputState
+from agents.tools.narrative_data_getter.news_data_getter import get_coindesk
+from agents.schemas.na_agent_schema import NAInputState, NAMapReducer, NAOutput, NAOverallState, NAOutputState, NATwitterKeywords
 from agents.llm_model import llm_model
 from langgraph.graph import START, END, StateGraph
 from langchain_core.messages import SystemMessage, HumanMessage
 
 
 
-def scraping_node(state: NAInputState):
+def twitter_keywords_node(state: NAInputState):
+    """Node to set Twitter keywords for scraping"""
+    logger.info("Starting twitter_keywords_node execution")
+    news_samples = get_coindesk()
+    news_samples = [news.pop("published_at") for news in news_samples]
+
+    system_prompt = """
+    You are a crypto market intelligence analyst. Your expertise is in reading news headlines and summaries to identify new, emerging, or rapidly accelerating market narratives. You are skilled at extracting the most potent and specific search terms that can be used to find high-signal conversations.
+    """
+    user_prompt = f"""
+    Your task is to act as a research assistant. Analyze the provided sample of recent crypto news headlines below.
+    Based on this sample, identify and extract the 3 to 10 most relevant keywords or multi-word phrases that should be used to search for more related data on social media platforms like X (Twitter).
+    Focus on identifying keywords that represent cryptocurrency categories or narratives, such as 'AI Agents', 'DeFi', 'RWA', 'Layer 2', or 'GameFi'. Prioritize topics that seem to be new, emerging, or accelerating in importance. Avoid overly generic terms like "crypto" or "bitcoin" unless they are part of a more specific phrase (e.g., "Bitcoin ETF inflows").
+
+    Example:
+    Input Headlines: A list of articles discussing tokenized treasuries, decentralized lending protocols, and new AI-powered trading bots.
+
+    Your Output: ["Real World Assets (RWA)", "DeFi Lending", "AI Agents"]
+
+    News Headlines to Analyze:
+    <news_samples>
+    {news_samples}
+    </news_samples>
+    """
+
+    structured_llm = llm_model.with_structured_output(NATwitterKeywords)
+    logger.info("Invoking LLM to extract Twitter keywords")
+    result = structured_llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)])
+    twitter_scrape_keywords = result.twitter_scrape_keywords if result.twitter_scrape_keywords else [] # type: ignore
+    logger.info(f"Extracted Twitter keywords: {twitter_scrape_keywords}")
+    logger.info("twitter_keywords_node execution completed successfully")
+
+    return {"twitter_scrape_keywords": twitter_scrape_keywords}
+
+def scraping_node(state: NAOverallState):
     """Scrape narrative data from various sources and store it in the database."""
     logger.info("Starting scraping_node execution")
     
-    # twitter_scrape_keywords = state['twitter_scrape_keywords']
+    twitter_scrape_keywords = state['twitter_scrape_keywords']
     twitter_max_tweets = state['twitter_scrape_max_tweets']
     cointelegraph_max_articles = state['cointelegraph_max_articles']
 
@@ -39,7 +74,7 @@ def scraping_node(state: NAInputState):
 
     logger.info("Calling get_narrative_data to scrape sources")
     documents = get_narrative_data(
-        # twitter_scrape_keywords=twitter_scrape_keywords,
+        twitter_scrape_keywords=twitter_scrape_keywords,
         twitter_scrape_max_tweets=twitter_max_tweets,
         cointelegraph_max_articles=cointelegraph_max_articles
     )
