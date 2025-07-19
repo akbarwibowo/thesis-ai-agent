@@ -15,7 +15,6 @@ from agents.schemas.fa_agent_schema import FAOutput
 class MainState(TypedDict):
     start_command: str
     token_ids: List[str]
-    twitter_scrape_keywords: List[str]
     identified_narratives: List[str]
     twitter_scrape_max_tweets: int
     cointelegraph_max_articles: int
