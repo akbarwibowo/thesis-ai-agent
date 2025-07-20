@@ -240,10 +240,33 @@ def narrative_analysis_node(state: NAOverallState) -> NAOutputState:
     result = structured_llm.invoke([SystemMessage(content=system_prompt)]+[HumanMessage(content=user_prompt)])
 
     logger.info(f"Narrative analysis completed - Report length: {len(str(result))} characters")
+    
+    # Error handling for None result
+    if result is None:
+        logger.error("LLM returned None result for narrative analysis")
+        error_report = """
+        # NARRATIVE ANALYSIS REPORT
+        Error: Unable to generate narrative analysis due to LLM failure.
+        ## NARRATIVE REPORT PROOF ID
+        []
+        """
+        return {"final_na_report": error_report}
+    
+    # Error handling for missing attributes
+    if not hasattr(result, 'narrative_analysis'):
+        logger.error("LLM result missing 'narrative_analysis' attribute")
+        error_report = """
+        # NARRATIVE ANALYSIS REPORT  
+        Error: Invalid LLM response format - missing narrative analysis content.
+        ## NARRATIVE REPORT PROOF ID
+        []
+        """
+        return {"final_na_report": error_report}
+    
     logger.info("narrative_analysis_node execution completed successfully")
 
     result_str = result.narrative_analysis # type: ignore
-    result_evidence_str = str(result.evidence) # type: ignore
+    result_evidence_str = str(result.evidence) if hasattr(result, 'evidence') else "[]" # type: ignore
     final_report_structure = f"""
     # NARRATIVE ANALYSIS REPORT
     {result_str}
