@@ -24,7 +24,7 @@ from agents.schemas.ta_agent_schema import TAInputState, TAOutputState, TAOveral
 from agents.tools.token_data_getter.technical_data_module import get_price_data_of_tokens, save_price_data_to_db
 from agents.tools.token_data_getter.tokens_identity import get_token_identity
 from agents.tools.technical_calculator.indicator_module import calculate_ema, calculate_sma, calculate_rsi
-from agents.llm_model import llm_model
+from agents.llm_model import get_llm
 
 
 
@@ -57,6 +57,7 @@ def technical_analysis_node(state: TAOverallState):
     """AI node for technical analysis."""
     logger.info("Starting technical_analysis_node execution")
     
+    llm_model = get_llm(temperature=0.2)
     structured_llm = llm_model.with_structured_output(TAOutput)
     system_prompt = """
     You are a quantitative technical analyst AI. Your sole function is to interpret raw time-series data for a given cryptocurrency to identify trends, momentum, and potential signals.

@@ -22,7 +22,7 @@ from agents.tools.token_data_getter.fundamental_data_module import get_fundament
 from agents.tools.token_data_getter.tokens_identity import get_token_identity
 from agents.tools.databases.mongodb import retrieve_documents
 from agents.schemas.fa_agent_schema import FAInputState, FAOutputState, FAOverallState, FAOutput
-from agents.llm_model import llm_model
+from agents.llm_model import get_llm
 from langgraph.graph import START, END, StateGraph
 from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -58,6 +58,7 @@ def fundamental_analysis_node(state: FAOverallState):
     """AI node for fundamental analysis"""
     logger.info("Starting fundamental_analysis_node execution")
 
+    llm_model = get_llm(temperature=0.2)
     structured_llm = llm_model.with_structured_output(FAOutput)
     system_prompt = """
     You are a meticulous and deeply knowledgeable cryptocurrency fundamental analyst. Your expertise lies in dissecting project documentation, such as whitepapers and official websites, to produce a comprehensive and objective investment-style analysis.

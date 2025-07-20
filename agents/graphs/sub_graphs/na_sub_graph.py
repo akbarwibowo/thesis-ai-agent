@@ -22,7 +22,7 @@ from agents.tools.narrative_data_getter.narrative_module import get_narrative_da
 from agents.tools.databases.mongodb import retrieve_documents
 from agents.tools.narrative_data_getter.news_data_getter import get_coindesk
 from agents.schemas.na_agent_schema import NAInputState, NAMapReducer, NAOutput, NAOverallState, NAOutputState, NATwitterKeywords
-from agents.llm_model import llm_model
+from agents.llm_model import get_llm
 from langgraph.graph import START, END, StateGraph
 from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -54,7 +54,7 @@ def twitter_keywords_node(state: NAInputState):
         {news_samples}
         </news_samples>
         """
-
+        llm_model = get_llm(temperature=0.1)
         structured_llm = llm_model.with_structured_output(NATwitterKeywords)
         logger.info("Invoking LLM to extract Twitter keywords")
         result = structured_llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)])
@@ -115,6 +115,7 @@ def map_reduces_node(state: NAOverallState):
     """Map and reduce the narrative data."""
     logger.info("Starting map_reduces_node execution")
     
+    llm_model = get_llm(temperature=0.1)
     structured_llm = llm_model.with_structured_output(NAMapReducer)
     documents = state["chunked_documents"]
     reduced_documents = []
@@ -175,6 +176,7 @@ def narrative_analysis_node(state: NAOverallState) -> NAOutputState:
     """AI node for narrative analysis"""
     logger.info("Starting narrative_analysis_node execution")
     
+    llm_model = get_llm(temperature=0.1)
     structured_llm = llm_model.with_structured_output(NAOutput)
     
     reduced_documents = state["reduced_documents"]

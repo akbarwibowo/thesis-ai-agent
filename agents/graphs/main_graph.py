@@ -23,7 +23,7 @@ from agents.graphs.sub_graphs.ta_sub_graph import ta_graph
 from agents.graphs.sub_graphs.fa_sub_graph import fa_graph
 from agents.schemas.main_agent_schema import MainState, NAIdentifierOutput
 from agents.schemas.na_agent_schema import NAOutputState
-from agents.llm_model import llm_model
+from agents.llm_model import get_llm
 from langgraph.graph import START, END, StateGraph
 from langchain_core.messages import SystemMessage, HumanMessage
 from agents.tools.databases.mongodb import retrieve_documents
@@ -88,6 +88,7 @@ def narrative_identifier(state: NAOutputState):
     available_categories = _get_categories_with_tokens()
     categories_name = [cat["name"] for cat in available_categories]
 
+    llm_model = get_llm(temperature=0.1)
     structured_llm = llm_model.with_structured_output(NAIdentifierOutput)
     system_prompt = """
     You are a highly specialized data extraction AI. Your sole function is to read a given block of text and identify the primary cryptocurrency market narrative categories mentioned within it. You are precise and your output is always in a structured format. Do not add any explanation or conversational text.
@@ -229,48 +230,49 @@ def final_report(state: MainState):
     logger.info(f"Including {len(ta_reports)} technical analysis reports")
     logger.info(f"Processing {len(categories_with_tokens)} token categories")
 
-    final_analysis_report = f"""{narrative_report}
-
-        ## Identified Narratives
-        {identified_narratives}
-
-        # Tokens of Identified Narratives<br>
-        """
+    # Build the final analysis report with proper Markdown formatting
+    final_analysis_report = f"{narrative_report}\n\n"
+    
+    final_analysis_report += f"## Identified Narratives\n{identified_narratives}\n\n"
+    
+    final_analysis_report += "# Tokens of Identified Narratives\n\n"
 
     for i, category in enumerate(categories_with_tokens):
         category_name = str(category['name']).capitalize()
         token_count = len(category["token_names"])
         logger.info(f"Adding category {i+1}: {category_name} with {token_count} tokens")
         
-        final_analysis_report += f"## {category_name}<br>"
+        final_analysis_report += f"## {category_name}\n"
         for token in category["token_names"]:
-            final_analysis_report += f"- {token}<br>"
-    
+            final_analysis_report += f"- {token}\n"
+        final_analysis_report += "\n"  # Add spacing between categories
+
     logger.info("Adding fundamental analysis reports to final report")
-    final_analysis_report += "<br># Fundamental Analysis Reports<br>"
+    final_analysis_report += "# Fundamental Analysis Reports\n"
     for i, fa_report in enumerate(fa_reports):
         token_name = str(fa_report.token_name).capitalize()
         proof_count = len(fa_report.proof)
         logger.info(f"Adding FA report {i+1}: {token_name} with {proof_count} proof points")
         
-        final_analysis_report += f"## {token_name}<br>"
-        final_analysis_report += f"### Fundamental Analysis<br>{fa_report.fundamental_analysis}<br>"
-        final_analysis_report += f"### Proof<br>"
+        final_analysis_report += f"## {token_name}\n"
+        final_analysis_report += f"### Fundamental Analysis\n\n{fa_report.fundamental_analysis}\n\n"
+        final_analysis_report += f"### Proof\n"
         for proof in fa_report.proof:
-            final_analysis_report += f"- {proof}<br>"
+            final_analysis_report += f"- {proof}\n"
+        final_analysis_report += "\n"  # Add spacing between FA reports
 
     logger.info("Adding technical analysis reports to final report")
-    final_analysis_report += "<br># Technical Analysis Reports<br>"
+    final_analysis_report += "# Technical Analysis Reports\n"
     for i, ta_report in enumerate(ta_reports):
         token_name = str(ta_report.token_name).capitalize()
         logger.info(f"Adding TA report {i+1}: {token_name}")
-        
-        final_analysis_report += f"## {token_name}<br>"
-        final_analysis_report += f"### Trend Analysis<br>{ta_report.trend_analysis}<br>"
-        final_analysis_report += f"### Momentum Analysis<br>{ta_report.momentum_analysis}<br>"
-        final_analysis_report += f"### Volume Analysis<br>{ta_report.volume_analysis}<br>"
-        final_analysis_report += f"### Outlook<br>{ta_report.synthesis_and_outlook}<br>"
-    final_analysis_report = final_analysis_report.strip().replace('\n', '<br>')
+
+        final_analysis_report += f"## {token_name}\n"
+        final_analysis_report += f"### Trend Analysis\n{ta_report.trend_analysis}\n\n"
+        final_analysis_report += f"### Momentum Analysis\n{ta_report.momentum_analysis}\n\n"
+        final_analysis_report += f"### Volume Analysis\n{ta_report.volume_analysis}\n\n"
+        final_analysis_report += f"### Outlook\n{ta_report.synthesis_and_outlook}\n\n"
+    final_analysis_report = final_analysis_report.strip()
     report_length = len(final_analysis_report)
     logger.info(f"Final report generated successfully.")
     logger.info(f"Final report length: {report_length} characters")
