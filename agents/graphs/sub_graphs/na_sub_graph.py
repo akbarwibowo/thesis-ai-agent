@@ -85,17 +85,14 @@ def scraping_node(state: NAOverallState):
     logger.info(f"Documents saved to collection: {collection_name}")
 
     logger.info("scraping_node execution completed successfully")
-    return {"db_collection": collection_name}
+    return {"documents": documents}
 
 
 def retrieve_node(state: NAOverallState):
     """Retrieve narrative data from the database."""
     logger.info("Starting retrieve_node execution")
-    
-    db_collection = state["db_collection"]
-    logger.info(f"Retrieving documents from collection: {db_collection}")
-    
-    documents = retrieve_documents(db_collection)
+        
+    documents = state["documents"]
     logger.info(f"Retrieved {len(documents)} documents from database")
     
     chunk_length = 20

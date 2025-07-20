@@ -138,7 +138,8 @@ def technical_analysis_node(state: TAOverallState):
         result = structured_llm.invoke([SystemMessage(content=system_prompt)]+[HumanMessage(content=user_prompt)])
         
         logger.info(f"Technical analysis for {token_name} completed successfully")
-        ta_analysis_list.append(result)
+        if result:
+            ta_analysis_list.append(result)
     logger.info(f"All technical analyses completed. Generated {len(ta_analysis_list)} analysis reports")
     logger.info(f"technical_analysis_node execution completed successfully")
     return {"final_ta_report": ta_analysis_list}
