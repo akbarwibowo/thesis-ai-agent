@@ -13,9 +13,14 @@ rate_limiter = InMemoryRateLimiter(
     max_bucket_size=20000,  # Controls the maximum burst size.
 )
 
-llm_model = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    google_api_key=VERTEX_API_KEY,
-    rate_limiter=rate_limiter,
-    max_output_tokens=10000
-) 
+
+def get_llm(temperature=0.5):
+    llm_model = ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash",
+        google_api_key=VERTEX_API_KEY,
+        rate_limiter=rate_limiter,
+        max_output_tokens=10000,
+        temperature=temperature
+    )
+    
+    return llm_model
