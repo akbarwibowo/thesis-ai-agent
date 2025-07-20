@@ -18,9 +18,9 @@ logging.basicConfig(
     ]
 )
 
-from sub_graphs.na_sub_graph import na_graph
-from sub_graphs.ta_sub_graph import ta_graph
-from sub_graphs.fa_sub_graph import fa_graph
+from agents.graphs.sub_graphs.na_sub_graph import na_graph
+from agents.graphs.sub_graphs.ta_sub_graph import ta_graph
+from agents.graphs.sub_graphs.fa_sub_graph import fa_graph
 from agents.schemas.main_agent_schema import MainState, NAIdentifierOutput
 from agents.schemas.na_agent_schema import NAOutputState
 from agents.llm_model import llm_model
@@ -311,34 +311,3 @@ def main_graph():
     logger.info(f"Main graph setup completed.")
 
     return ai_agent
-
-
-# Example usage (uncomment and run to test):
-if __name__ == "__main__":
-    logger.info("=== Starting Main AI Analyst Graph Execution ===")
-        
-    try:
-        logger.info("Creating main graph instance")
-        graph = main_graph()
-        
-        logger.info("Starting analysis with START command")
-        result = graph.invoke({"start_command": "START"})  # type: ignore
-
-        logger.info(f"Main graph execution completed successfully")
-        logger.info("Final result keys: %s", list(result.keys()) if isinstance(result, dict) else "Non-dict result")
-        
-        # Log final report length if available
-        if isinstance(result, dict) and "final_analysis_report" in result:
-            report_length = len(str(result["final_analysis_report"]))
-            logger.info(f"Final analysis report generated: {report_length} characters")
-        
-        print("\n" + "="*80)
-        print("FINAL ANALYSIS REPORT")
-        print("="*80)
-        print(result['final_analysis_report'])
-        
-    except Exception as e:
-        logger.error(f"Error during main graph execution: {e}")
-        raise
-    
-    logger.info("=== Main AI Analyst Graph Execution Complete ===")
