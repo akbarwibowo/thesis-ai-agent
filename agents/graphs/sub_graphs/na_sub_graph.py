@@ -67,6 +67,7 @@ def twitter_keywords_node(state: NAInputState):
         logger.info("No Twitter scraping required")
         return {"twitter_scrape_keywords": []}
 
+
 def scraping_node(state: NAOverallState):
     """Scrape narrative data from various sources and store it in the database."""
     logger.info("Starting scraping_node execution")
@@ -90,14 +91,14 @@ def scraping_node(state: NAOverallState):
     logger.info(f"Documents saved to collection: {collection_name}")
 
     logger.info("scraping_node execution completed successfully")
-    return {"documents": documents}
+    return {"db_collection": collection_name}
 
 
 def retrieve_node(state: NAOverallState):
     """Retrieve narrative data from the database."""
     logger.info("Starting retrieve_node execution")
-        
-    documents = state["documents"]
+    db_collection = state["db_collection"]
+    documents = retrieve_documents(collection_name=db_collection)
     logger.info(f"Retrieved {len(documents)} documents from database")
     
     chunk_length = 20

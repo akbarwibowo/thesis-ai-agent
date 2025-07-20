@@ -38,7 +38,7 @@ class NAOutputState(TypedDict):
 
 class NAOverallState(NAInputState, NAOutputState):
     """the overall state of the narrative sub-graph"""
+    db_collection: str
     chunked_documents: List[List[dict[str, str]]]
     reduced_documents: List[NAMapReducer]
     twitter_scrape_keywords: List[str]
-    documents: List[dict[str, str]]
