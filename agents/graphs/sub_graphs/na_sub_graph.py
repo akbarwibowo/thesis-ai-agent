@@ -260,12 +260,14 @@ def na_graph():
     logger.info("Setting up Narrative Analysis (NA) graph")
 
     na_graph = StateGraph(NAOverallState, input_schema=NAInputState, output_schema=NAOutputState)
+    na_graph.add_node("twitter_keywords", twitter_keywords_node)
     na_graph.add_node('scraping', scraping_node)
     na_graph.add_node('retrieve', retrieve_node)
     na_graph.add_node('map_reduces', map_reduces_node)
     na_graph.add_node('narrative_analysis', narrative_analysis_node)
 
-    na_graph.add_edge(START, 'scraping')
+    na_graph.add_edge(START, "twitter_keywords")
+    na_graph.add_edge("twitter_keywords", 'scraping')
     na_graph.add_edge('scraping', 'retrieve')
     na_graph.add_edge('retrieve', 'map_reduces')
     na_graph.add_edge('map_reduces', 'narrative_analysis')
