@@ -272,7 +272,7 @@ def narrative_analysis_node(state: NAOverallState) -> NAOutputState:
     {result_str}
     ## NARRATIVE REPORT PROOF ID
     {result_evidence_str}
-    """
+    """.lstrip()
 
     return {"final_na_report": final_report_structure}
 
