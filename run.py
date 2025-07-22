@@ -268,7 +268,6 @@ def run_analysis(args: argparse.Namespace, logger: logging.Logger) -> Tuple[str,
             "start_command": "START"
         }
         
-        # TODO: Implement parameter passing when the graph supports it
         if args.max_tokens:
             logger.info(f"⚙️  Token limit configuration: {args.max_tokens}")
         

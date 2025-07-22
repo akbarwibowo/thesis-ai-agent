@@ -2,6 +2,7 @@ import sys
 import logging
 import os
 from typing import Sequence
+from datetime import datetime, timedelta
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.join(current_dir, '..', '..')
@@ -26,7 +27,7 @@ from agents.schemas.na_agent_schema import NAOutputState
 from agents.llm_model import get_llm
 from langgraph.graph import START, END, StateGraph
 from langchain_core.messages import SystemMessage, HumanMessage
-from agents.tools.databases.mongodb import retrieve_documents
+from agents.tools.databases.mongodb import retrieve_documents, delete_document
 from agents.tools.narrative_data_getter.narrative_module import collection_name
 from agents.tools.token_data_getter.token_selection import categories_selector, _get_categories_with_tokens
 from agents.tools.token_data_getter.tokens_identity import get_token_identity
@@ -46,6 +47,14 @@ def start_graph(state: MainState):
 
     logger.info("Retrieving existing narrative data from database")
     narrative_data = retrieve_documents(collection_name=collection_name)
+    if narrative_data:
+        for data in narrative_data:
+            doc_date = datetime.fromisoformat(str(data.get('published_at')))
+            if datetime.now() - doc_date > timedelta(days=30):
+                logger.info(f"Removing old document from {collection_name}: {data}")
+                # Remove old document
+                delete_document(collection_name=collection_name, filter=data)
+                narrative_data.remove(data)
     
     existing_count = len(narrative_data) if isinstance(narrative_data, list) else 0
     logger.info(f"Found {existing_count} existing narrative documents in database")
