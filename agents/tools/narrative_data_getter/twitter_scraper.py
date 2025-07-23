@@ -187,7 +187,7 @@ def _login_to_twitter(driver):
             return False
         
         # Navigate to Twitter login page
-        driver.get("https://twitter.com/login")
+        driver.get("https://x.com/login")
         wait = WebDriverWait(driver, 20)
         
         # Wait for and fill email/username field
@@ -324,7 +324,7 @@ def _scrape_twitter_search(query, max_tweets=100, driver=None, since_date="2025-
         
         # Navigate to Twitter search with date filter
         search_query = f"{query} since:{since_date} lang:en"
-        search_url = f"https://twitter.com/search?q={search_query}&src=typed_query&f=live"
+        search_url = f"https://x.com/search?q={search_query}&src=typed_query&f=live"
         driver.get(search_url)
         logger.info(f"Navigating to Twitter search URL: {search_url}")
 
