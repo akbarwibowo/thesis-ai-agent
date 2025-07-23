@@ -97,7 +97,7 @@ def narrative_identifier(state: NAOutputState):
     available_categories = _get_categories_with_tokens()
     categories_name = [cat["name"] for cat in available_categories]
 
-    llm_model = get_llm(temperature=0.1)
+    llm_model = get_llm(temperature=0.3)
     structured_llm = llm_model.with_structured_output(NAIdentifierOutput)
     system_prompt = """
     You are a highly specialized data extraction AI. Your sole function is to read a given block of text and identify the primary cryptocurrency market narrative categories mentioned within it. You are precise and your output is always in a structured format. Do not add any explanation or conversational text.

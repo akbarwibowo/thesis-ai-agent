@@ -49,12 +49,14 @@ def twitter_keywords_node(state: NAInputState):
 
         Your Output: ["Real World Assets (RWA)", "DeFi Lending", "AI Agents"]
 
+        If there is no clear emerging narrative, return an empty list [].
+
         News Headlines to Analyze:
         <news_samples>
         {news_samples}
         </news_samples>
         """
-        llm_model = get_llm(temperature=0.1)
+        llm_model = get_llm(temperature=0.4)
         structured_llm = llm_model.with_structured_output(NATwitterKeywords)
         logger.info("Invoking LLM to extract Twitter keywords")
         result = structured_llm.invoke([SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)])
@@ -115,7 +117,7 @@ def map_reduces_node(state: NAOverallState):
     """Map and reduce the narrative data."""
     logger.info("Starting map_reduces_node execution")
     
-    llm_model = get_llm(temperature=0.1)
+    llm_model = get_llm(temperature=0.4)
     structured_llm = llm_model.with_structured_output(NAMapReducer)
     documents = state["chunked_documents"]
     reduced_documents = []
@@ -176,7 +178,7 @@ def narrative_analysis_node(state: NAOverallState) -> NAOutputState:
     """AI node for narrative analysis"""
     logger.info("Starting narrative_analysis_node execution")
     
-    llm_model = get_llm(temperature=0.1)
+    llm_model = get_llm(temperature=0.3)
     structured_llm = llm_model.with_structured_output(NAOutput)
     
     reduced_documents = state["reduced_documents"]

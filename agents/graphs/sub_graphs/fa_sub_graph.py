@@ -58,7 +58,7 @@ def fundamental_analysis_node(state: FAOverallState):
     """AI node for fundamental analysis"""
     logger.info("Starting fundamental_analysis_node execution")
 
-    llm_model = get_llm(temperature=0.2)
+    llm_model = get_llm(temperature=0.4)
     structured_llm = llm_model.with_structured_output(FAOutput)
     system_prompt = """
     You are a meticulous and deeply knowledgeable cryptocurrency fundamental analyst. Your expertise lies in dissecting project documentation, such as whitepapers and official websites, to produce a comprehensive and objective investment-style analysis.

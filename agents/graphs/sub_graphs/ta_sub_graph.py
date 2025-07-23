@@ -57,7 +57,7 @@ def technical_analysis_node(state: TAOverallState):
     """AI node for technical analysis."""
     logger.info("Starting technical_analysis_node execution")
     
-    llm_model = get_llm(temperature=0.2)
+    llm_model = get_llm(temperature=0.4)
     structured_llm = llm_model.with_structured_output(TAOutput)
     system_prompt = """
     You are a quantitative technical analyst AI. Your sole function is to interpret raw time-series data for a given cryptocurrency to identify trends, momentum, and potential signals.
