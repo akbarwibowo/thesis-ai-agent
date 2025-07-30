@@ -114,6 +114,7 @@ def get_narrative_data(
             cleaned_text = re.sub(r'@\w+', '', cleaned_text)
             cleaned_text = re.sub(r'#(\w+)', r'\1', cleaned_text)
             cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
+            cleaned_text = re.sub(r'[^\w\s]', '', cleaned_text)
             data['description'] = cleaned_text
 
             data['id'] = str(id)
