@@ -242,7 +242,7 @@ def final_report(state: MainState):
     # Build the final analysis report with proper Markdown formatting
     final_analysis_report = f"{narrative_report}\n\n"
     
-    final_analysis_report += f"## Identified Narratives\n{identified_narratives}\n\n"
+    final_analysis_report += f"## Categories of Identified Narratives\n{identified_narratives}\n\n"
     
     final_analysis_report += "# Tokens of Identified Narratives\n\n"
 
